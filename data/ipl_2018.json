@@ -1,0 +1,845 @@
+{
+  "season": 2018,
+  "teams": [
+    {
+      "code": "CSK",
+      "finish": 1,
+      "players": [
+        {
+          "name": "MS Dhoni",
+          "role": "WK",
+          "tier": "star",
+          "captain": true,
+          "overseas": false
+        },
+        {
+          "name": "Suresh Raina",
+          "role": "BAT",
+          "tier": "star",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Shane Watson",
+          "role": "ALL",
+          "tier": "star",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Ravindra Jadeja",
+          "role": "ALL",
+          "tier": "star",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Ambati Rayudu",
+          "role": "BAT",
+          "tier": "key",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Faf du Plessis",
+          "role": "BAT",
+          "tier": "key",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Dwayne Bravo",
+          "role": "ALL",
+          "tier": "key",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Deepak Chahar",
+          "role": "BOWL",
+          "tier": "key",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Imran Tahir",
+          "role": "BOWL",
+          "tier": "key",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Harbhajan Singh",
+          "role": "BOWL",
+          "tier": "role",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Shardul Thakur",
+          "role": "BOWL",
+          "tier": "role",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Kedar Jadhav",
+          "role": "ALL",
+          "tier": "role",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Sam Billings",
+          "role": "WK",
+          "tier": "squad",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Murali Vijay",
+          "role": "BAT",
+          "tier": "squad",
+          "captain": false,
+          "overseas": false
+        }
+      ]
+    },
+    {
+      "code": "SRH",
+      "finish": 2,
+      "players": [
+        {
+          "name": "Kane Williamson",
+          "role": "BAT",
+          "tier": "star",
+          "captain": true,
+          "overseas": true
+        },
+        {
+          "name": "David Warner",
+          "role": "BAT",
+          "tier": "star",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Shikhar Dhawan",
+          "role": "BAT",
+          "tier": "star",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Rashid Khan",
+          "role": "BOWL",
+          "tier": "star",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Bhuvneshwar Kumar",
+          "role": "BOWL",
+          "tier": "star",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Shakib Al Hasan",
+          "role": "ALL",
+          "tier": "key",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Manish Pandey",
+          "role": "BAT",
+          "tier": "key",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Yusuf Pathan",
+          "role": "ALL",
+          "tier": "key",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Wriddhiman Saha",
+          "role": "WK",
+          "tier": "key",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Siddarth Kaul",
+          "role": "BOWL",
+          "tier": "role",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Carlos Brathwaite",
+          "role": "ALL",
+          "tier": "role",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Basil Thampi",
+          "role": "BOWL",
+          "tier": "role",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Deepak Hooda",
+          "role": "ALL",
+          "tier": "role",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Mohammad Nabi",
+          "role": "ALL",
+          "tier": "squad",
+          "captain": false,
+          "overseas": true
+        }
+      ]
+    },
+    {
+      "code": "KKR",
+      "finish": 3,
+      "players": [
+        {
+          "name": "Dinesh Karthik",
+          "role": "WK",
+          "tier": "star",
+          "captain": true,
+          "overseas": false
+        },
+        {
+          "name": "Andre Russell",
+          "role": "ALL",
+          "tier": "star",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Sunil Narine",
+          "role": "ALL",
+          "tier": "star",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Robin Uthappa",
+          "role": "BAT",
+          "tier": "key",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Nitish Rana",
+          "role": "BAT",
+          "tier": "key",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Chris Lynn",
+          "role": "BAT",
+          "tier": "key",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Kuldeep Yadav",
+          "role": "BOWL",
+          "tier": "key",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Mitchell Starc",
+          "role": "BOWL",
+          "tier": "key",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Piyush Chawla",
+          "role": "BOWL",
+          "tier": "role",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Shubman Gill",
+          "role": "BAT",
+          "tier": "role",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Rinku Singh",
+          "role": "BAT",
+          "tier": "role",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Prasidh Krishna",
+          "role": "BOWL",
+          "tier": "role",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Vinay Kumar",
+          "role": "BOWL",
+          "tier": "squad",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Ishank Jaggi",
+          "role": "BAT",
+          "tier": "squad",
+          "captain": false,
+          "overseas": false
+        }
+      ]
+    },
+    {
+      "code": "RR",
+      "finish": 4,
+      "players": [
+        {
+          "name": "Ajinkya Rahane",
+          "role": "BAT",
+          "tier": "star",
+          "captain": true,
+          "overseas": false
+        },
+        {
+          "name": "Jos Buttler",
+          "role": "WK",
+          "tier": "star",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Steve Smith",
+          "role": "BAT",
+          "tier": "star",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Ben Stokes",
+          "role": "ALL",
+          "tier": "star",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Jofra Archer",
+          "role": "BOWL",
+          "tier": "key",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Sanju Samson",
+          "role": "WK",
+          "tier": "key",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Rahul Tripathi",
+          "role": "BAT",
+          "tier": "key",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "D'Arcy Short",
+          "role": "ALL",
+          "tier": "key",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Jaydev Unadkat",
+          "role": "BOWL",
+          "tier": "role",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Ish Sodhi",
+          "role": "BOWL",
+          "tier": "role",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Dhawal Kulkarni",
+          "role": "BOWL",
+          "tier": "role",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Stuart Binny",
+          "role": "ALL",
+          "tier": "role",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Krishnappa Gowtham",
+          "role": "ALL",
+          "tier": "squad",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Heinrich Klaasen",
+          "role": "WK",
+          "tier": "squad",
+          "captain": false,
+          "overseas": true
+        }
+      ]
+    },
+    {
+      "code": "MI",
+      "finish": 5,
+      "players": [
+        {
+          "name": "Rohit Sharma",
+          "role": "BAT",
+          "tier": "star",
+          "captain": true,
+          "overseas": false
+        },
+        {
+          "name": "Hardik Pandya",
+          "role": "ALL",
+          "tier": "star",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Jasprit Bumrah",
+          "role": "BOWL",
+          "tier": "star",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Kieron Pollard",
+          "role": "ALL",
+          "tier": "star",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Suryakumar Yadav",
+          "role": "BAT",
+          "tier": "key",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Krunal Pandya",
+          "role": "ALL",
+          "tier": "key",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Ishan Kishan",
+          "role": "WK",
+          "tier": "key",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "JP Duminy",
+          "role": "BAT",
+          "tier": "key",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Mustafizur Rahman",
+          "role": "BOWL",
+          "tier": "role",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Mitchell McClenaghan",
+          "role": "BOWL",
+          "tier": "role",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Evin Lewis",
+          "role": "BAT",
+          "tier": "role",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Rahul Chahar",
+          "role": "BOWL",
+          "tier": "role",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Aditya Tare",
+          "role": "WK",
+          "tier": "squad",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Pat Cummins",
+          "role": "BOWL",
+          "tier": "squad",
+          "captain": false,
+          "overseas": true
+        }
+      ]
+    },
+    {
+      "code": "RCB",
+      "finish": 6,
+      "players": [
+        {
+          "name": "Virat Kohli",
+          "role": "BAT",
+          "tier": "star",
+          "captain": true,
+          "overseas": false
+        },
+        {
+          "name": "AB de Villiers",
+          "role": "WK",
+          "tier": "star",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Quinton de Kock",
+          "role": "WK",
+          "tier": "key",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Moeen Ali",
+          "role": "ALL",
+          "tier": "key",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Yuzvendra Chahal",
+          "role": "BOWL",
+          "tier": "key",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Umesh Yadav",
+          "role": "BOWL",
+          "tier": "key",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Mandeep Singh",
+          "role": "BAT",
+          "tier": "role",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Manan Vohra",
+          "role": "BAT",
+          "tier": "role",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Corey Anderson",
+          "role": "ALL",
+          "tier": "role",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Mohammed Siraj",
+          "role": "BOWL",
+          "tier": "role",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Tim Southee",
+          "role": "BOWL",
+          "tier": "role",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Washington Sundar",
+          "role": "ALL",
+          "tier": "role",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Parthiv Patel",
+          "role": "WK",
+          "tier": "squad",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Brendon McCullum",
+          "role": "BAT",
+          "tier": "squad",
+          "captain": false,
+          "overseas": true
+        }
+      ]
+    },
+    {
+      "code": "PBKS",
+      "finish": 7,
+      "players": [
+        {
+          "name": "R Ashwin",
+          "role": "BOWL",
+          "tier": "star",
+          "captain": true,
+          "overseas": false
+        },
+        {
+          "name": "KL Rahul",
+          "role": "WK",
+          "tier": "star",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Chris Gayle",
+          "role": "BAT",
+          "tier": "star",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Yuvraj Singh",
+          "role": "ALL",
+          "tier": "key",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "David Miller",
+          "role": "BAT",
+          "tier": "key",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Aaron Finch",
+          "role": "ALL",
+          "tier": "key",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Andrew Tye",
+          "role": "BOWL",
+          "tier": "key",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Mujeeb Ur Rahman",
+          "role": "BOWL",
+          "tier": "key",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Mayank Agarwal",
+          "role": "BAT",
+          "tier": "role",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Karun Nair",
+          "role": "BAT",
+          "tier": "role",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Barinder Sran",
+          "role": "BOWL",
+          "tier": "role",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Mohit Sharma",
+          "role": "BOWL",
+          "tier": "role",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Manoj Tiwary",
+          "role": "BAT",
+          "tier": "squad",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Ankit Rajpoot",
+          "role": "BOWL",
+          "tier": "squad",
+          "captain": false,
+          "overseas": false
+        }
+      ]
+    },
+    {
+      "code": "DC",
+      "finish": 8,
+      "players": [
+        {
+          "name": "Gautam Gambhir",
+          "role": "BAT",
+          "tier": "star",
+          "captain": true,
+          "overseas": false
+        },
+        {
+          "name": "Rishabh Pant",
+          "role": "WK",
+          "tier": "star",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Shreyas Iyer",
+          "role": "BAT",
+          "tier": "star",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Glenn Maxwell",
+          "role": "ALL",
+          "tier": "key",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Trent Boult",
+          "role": "BOWL",
+          "tier": "key",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Kagiso Rabada",
+          "role": "BOWL",
+          "tier": "key",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Mohammed Shami",
+          "role": "BOWL",
+          "tier": "key",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Chris Morris",
+          "role": "ALL",
+          "tier": "key",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Prithvi Shaw",
+          "role": "BAT",
+          "tier": "role",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Colin Munro",
+          "role": "BAT",
+          "tier": "role",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Amit Mishra",
+          "role": "BOWL",
+          "tier": "role",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Sandeep Lamichhane",
+          "role": "BOWL",
+          "tier": "role",
+          "captain": false,
+          "overseas": true
+        },
+        {
+          "name": "Vijay Shankar",
+          "role": "ALL",
+          "tier": "squad",
+          "captain": false,
+          "overseas": false
+        },
+        {
+          "name": "Naman Ojha",
+          "role": "WK",
+          "tier": "squad",
+          "captain": false,
+          "overseas": false
+        }
+      ]
+    }
+  ],
+  "orange_cap": {
+    "player": "Kane Williamson",
+    "team": "SRH"
+  },
+  "purple_cap": {
+    "player": "Andrew Tye",
+    "team": "PBKS"
+  }
+}
