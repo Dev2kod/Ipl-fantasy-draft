@@ -1,22 +1,19 @@
 import { create } from "zustand";
 import type {
-  GameData, Squad, Slot, SignedPlayer, Formation, Mode, Difficulty, Style, Role,
-  DraftModeOption, Position,
+  GameData, Squad, Slot, SignedPlayer, Mode, Difficulty, Style, Position,
 } from "../engine/types";
 import {
-  FORMATIONS, MODES, DIFFICULTIES, STYLES, MAX_SWITCHES_PER_PICK,
-  DRAFT_MODES, AUCTION_PURSE, POSITION_FORMATION,
+  MODES, DIFFICULTIES, STYLES, MAX_SWITCHES_PER_PICK, POSITION_FORMATION,
 } from "../engine/constants";
 import {
   drawRandomSquad, switchCandidates, filledCount,
-  isDeadMarket, eligibleRoleFor,
-  isDeadMarketAuction, eligibleRoleForAuction,
-  isDeadMarketPositions, eligiblePositionFor,
+  isDeadMarketPositions, eligiblePositionFor, validMoveTargets,
 } from "../engine/draft";
-import { simulateCupRun, type MatchResult, type SimMeta } from "../engine/simulate";
+import { simulateCupRun, GROUP_MATCHES, type MatchResult, type SimMeta } from "../engine/simulate";
 import { fetchGameData } from "../engine/data";
 
-export type Screen = "setup" | "draft" | "style" | "result";
+export type Screen = "setup" | "draft" | "style" | "knockout" | "result";
+export type KnockoutPhase = "preview" | "simulating" | "result";
 
 interface GameState {
   // data
@@ -27,8 +24,6 @@ interface GameState {
   screen: Screen;
 
   // setup choices
-  draftMode: DraftModeOption;
-  formation: Formation;
   mode: Mode;
   difficulty: Difficulty;
   style: Style;
@@ -36,7 +31,6 @@ interface GameState {
   // draft state
   slots: Slot[];
   switchesLeft: number;
-  purseLeft: number;
   currentSquad: Squad | null;
   usedPlayerNames: Set<string>;
   turnExcludedSquadIds: Set<number>;
@@ -49,32 +43,30 @@ interface GameState {
   simExpanded: Set<number>;
   showScorecardFor: number | null;
 
+  // knockout match-day state
+  knockoutIdx: number; // index into the knockout slice of simResults (simResults[GROUP_MATCHES + knockoutIdx])
+  knockoutPhase: KnockoutPhase;
+
   // actions
   loadData: () => Promise<void>;
-  setDraftMode: (m: DraftModeOption) => void;
-  setFormation: (f: Formation) => void;
   setMode: (m: Mode) => void;
   setDifficulty: (d: Difficulty) => void;
   setStyle: (s: Style) => void;
   startDraft: () => void;
   drawNext: () => void;
-  doSwitch: (kind: "team" | "season") => void;
-  draftPlayer: (playerName: string, slotKey: Role | Position) => void;
+  doSwitch: (kind: "team" | "edition") => void;
+  draftPlayer: (playerName: string, slotKey: Position) => void;
+  movePlayer: (fromIdx: number, toIdx: number) => void;
   goToStyle: () => void;
   runSimulation: () => void;
+  goToKnockout: () => void;
+  playKnockoutMatch: () => void;
+  continueKnockout: () => void;
   goToResult: () => void;
   toggleMatchExpand: (idx: number) => void;
   openScorecard: (idx: number) => void;
   closeScorecard: () => void;
   restart: () => void;
-}
-
-function buildRoleSlots(formation: Formation): Slot[] {
-  const slots: Slot[] = [];
-  (["BAT", "WK", "ALL", "BOWL"] as Role[]).forEach((role) => {
-    for (let i = 0; i < (formation.need[role] || 0); i++) slots.push({ role, position: null, player: null });
-  });
-  return slots;
 }
 
 function buildPositionSlots(): Slot[] {
@@ -86,15 +78,12 @@ export const useGameStore = create<GameState>((set, get) => ({
   dataError: null,
   screen: "setup",
 
-  draftMode: DRAFT_MODES[0],
-  formation: FORMATIONS[0],
   mode: MODES[0],
   difficulty: DIFFICULTIES[1],
   style: STYLES[1],
 
   slots: [],
   switchesLeft: MAX_SWITCHES_PER_PICK,
-  purseLeft: AUCTION_PURSE,
   currentSquad: null,
   usedPlayerNames: new Set(),
   turnExcludedSquadIds: new Set(),
@@ -106,6 +95,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   simExpanded: new Set(),
   showScorecardFor: null,
 
+  knockoutIdx: 0,
+  knockoutPhase: "preview",
+
   loadData: async () => {
     try {
       const data = await fetchGameData();
@@ -115,20 +107,16 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
   },
 
-  setDraftMode: (m) => set({ draftMode: m }),
-  setFormation: (f) => set({ formation: f }),
   setMode: (m) => set({ mode: m }),
   setDifficulty: (d) => set({ difficulty: d }),
   setStyle: (s) => set({ style: s }),
 
   startDraft: () => {
-    const { formation, data, draftMode } = get();
+    const { data } = get();
     if (!data) return;
-    const slots = draftMode.id === "positions" ? buildPositionSlots() : buildRoleSlots(formation);
     set({
-      slots,
+      slots: buildPositionSlots(),
       switchesLeft: MAX_SWITCHES_PER_PICK,
-      purseLeft: AUCTION_PURSE,
       currentSquad: null,
       usedPlayerNames: new Set(),
       turnExcludedSquadIds: new Set(),
@@ -155,7 +143,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     nextExcluded.add(currentSquad.id);
     const next = cands[Math.floor(Math.random() * cands.length)];
     const left = switchesLeft - 1;
-    const kindMsg = kind === "team" ? "another team, same season" : "same team, another season";
+    const kindMsg = kind === "team" ? "another team, same World Cup" : "same team, another World Cup";
     set({
       switchesLeft: left,
       turnExcludedSquadIds: nextExcluded,
@@ -165,29 +153,42 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   draftPlayer: (playerName, slotKey) => {
-    const { currentSquad, slots, usedPlayerNames, draftMode, purseLeft } = get();
+    const { currentSquad, slots, usedPlayerNames } = get();
     if (!currentSquad) return;
     const player = currentSquad.players.find((p) => p.name === playerName);
     if (!player) return;
-    if (draftMode.id === "auction" && player.price > purseLeft) return;
-    const slotIdx = slots.findIndex((s) => !s.player && (s.position ? s.position === slotKey : s.role === slotKey));
+    const slotIdx = slots.findIndex((s) => !s.player && s.position === slotKey);
     if (slotIdx === -1) return;
-    const signed: SignedPlayer = { ...player, _src: `${currentSquad.franchise} ${currentSquad.season}`, _srcSquadId: currentSquad.id };
+    const signed: SignedPlayer = { ...player, _src: `${currentSquad.country_name} ${currentSquad.edition}`, _srcSquadId: currentSquad.id };
     const newSlots = slots.map((s, i) => (i === slotIdx ? { ...s, player: signed } : s));
     const newUsed = new Set(usedPlayerNames);
     newUsed.add(player.name);
     set({
       slots: newSlots,
       usedPlayerNames: newUsed,
-      purseLeft: draftMode.id === "auction" ? Math.round((purseLeft - player.price) * 10) / 10 : purseLeft,
       switchesLeft: MAX_SWITCHES_PER_PICK,
       turnExcludedSquadIds: new Set(),
       currentSquad: null,
-      lastMessage: `✓ Signed ${player.name} (${currentSquad.franchise} ${currentSquad.season}).`,
+      lastMessage: `✓ Signed ${player.name} (${currentSquad.country_name} ${currentSquad.edition}).`,
     });
     if (filledCount(newSlots) < 11) {
       setTimeout(() => get().drawNext(), 220);
     }
+  },
+
+  /** Move (or swap with) another slot -- lets the XI stay editable after the
+   *  initial pick, as long as everyone involved still fits where they land. */
+  movePlayer: (fromIdx, toIdx) => {
+    const { slots } = get();
+    if (!validMoveTargets(fromIdx, slots).includes(toIdx)) return;
+    const from = slots[fromIdx];
+    const to = slots[toIdx];
+    const newSlots = slots.map((s, i) => {
+      if (i === fromIdx) return { ...s, player: to.player };
+      if (i === toIdx) return { ...s, player: from.player };
+      return s;
+    });
+    set({ slots: newSlots });
   },
 
   goToStyle: () => set({ screen: "style" }),
@@ -203,6 +204,27 @@ export const useGameStore = create<GameState>((set, get) => ({
       simRevealed: results.length, // every played match renders immediately
       simExpanded: new Set(),
     });
+  },
+
+  goToKnockout: () => set({ screen: "knockout", knockoutIdx: 0, knockoutPhase: "preview" }),
+
+  /** Kick off the currently-previewed knockout match: a brief "simulating"
+   *  animation, then the result reveals -- one match at a time, FIFA-style. */
+  playKnockoutMatch: () => {
+    set({ knockoutPhase: "simulating" });
+    setTimeout(() => set({ knockoutPhase: "result" }), 1600);
+  },
+
+  /** Move on from the just-revealed knockout result: to the next match's
+   *  preview if there is one, otherwise to the final Result screen. */
+  continueKnockout: () => {
+    const { knockoutIdx, simResults } = get();
+    const nextGlobalIdx = GROUP_MATCHES + knockoutIdx + 1;
+    if (nextGlobalIdx < simResults.length) {
+      set({ knockoutIdx: knockoutIdx + 1, knockoutPhase: "preview" });
+    } else {
+      set({ screen: "result" });
+    }
   },
 
   goToResult: () => set({ screen: "result" }),
@@ -222,31 +244,28 @@ export const useGameStore = create<GameState>((set, get) => ({
     currentSquad: null,
     usedPlayerNames: new Set(),
     turnExcludedSquadIds: new Set(),
-    purseLeft: AUCTION_PURSE,
     simResults: [],
     simMeta: null,
     simRevealed: 0,
     simExpanded: new Set(),
     showScorecardFor: null,
+    knockoutIdx: 0,
+    knockoutPhase: "preview",
   }),
 }));
 
-/** Is the current market entirely unusable, mode-aware — triggers a free redraw. */
+/** Is the current market entirely unusable? Triggers a free redraw. */
 export function isMarketDead(): boolean {
-  const { currentSquad, slots, usedPlayerNames, draftMode, purseLeft, data } = useGameStore.getState();
+  const { currentSquad, slots, usedPlayerNames } = useGameStore.getState();
   if (!currentSquad) return false;
-  if (draftMode.id === "positions") return isDeadMarketPositions(currentSquad, slots, usedPlayerNames);
-  if (draftMode.id === "auction") return isDeadMarketAuction(currentSquad, slots, usedPlayerNames, purseLeft, data?.squads ?? []);
-  return isDeadMarket(currentSquad, slots, usedPlayerNames);
+  return isDeadMarketPositions(currentSquad, slots, usedPlayerNames);
 }
 
-/** What slot (role or specific position) a player from the current squad would fill, mode-aware. */
-export function eligibleSlotForCurrent(playerName: string): Role | Position | null {
-  const { currentSquad, slots, usedPlayerNames, draftMode, purseLeft, data } = useGameStore.getState();
+/** What position slot a player from the current squad would fill, if any. */
+export function eligibleSlotForCurrent(playerName: string): Position | null {
+  const { currentSquad, slots, usedPlayerNames } = useGameStore.getState();
   if (!currentSquad) return null;
   const player = currentSquad.players.find((p) => p.name === playerName);
   if (!player) return null;
-  if (draftMode.id === "positions") return eligiblePositionFor(player, slots, usedPlayerNames);
-  if (draftMode.id === "auction") return eligibleRoleForAuction(player, slots, usedPlayerNames, purseLeft, data?.squads ?? []);
-  return eligibleRoleFor(player, slots, usedPlayerNames);
+  return eligiblePositionFor(player, slots, usedPlayerNames);
 }

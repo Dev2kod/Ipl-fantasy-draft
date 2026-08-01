@@ -1,36 +1,44 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import clsx from "clsx";
-import { FileText } from "lucide-react";
+import { FileText, Trophy, Target } from "lucide-react";
 import { useGameStore } from "../store/useGameStore";
 import type { SignedPlayer } from "../engine/types";
-import { Button, CapBadge } from "./ui";
+import { Button, AwardBadge } from "./ui";
 import ScorecardModal from "./ScorecardModal";
 
 export default function ResultScreen() {
-  const { simResults, simMeta, slots, formation, mode, difficulty, style, restart } = useGameStore();
+  const { simResults, simMeta, slots, mode, difficulty, style, restart } = useGameStore();
   const [copied, setCopied] = useState(false);
   const [openIdx, setOpenIdx] = useState<number | null>(null);
 
   if (!simMeta) return null;
   const won = simMeta.won;
-  const perfect = won === 7;
+  const played = simMeta.played;
+  const perfect = simMeta.champion && won === played && played === 7;
   const players = slots.map((s) => s.player).filter((p): p is SignedPlayer => p !== null);
 
   let verdict: string, sub: string;
   if (perfect) {
     verdict = "🏆 CHAMPIONS — UNBEATEN";
     sub = "Seven wins from seven. You built the perfect XI and delivered the statement.";
+  } else if (simMeta.champion) {
+    verdict = "🏆 CHAMPIONS";
+    sub = "You lifted the trophy — though the run wasn't spotless.";
+  } else if (simMeta.reachedFinal) {
+    verdict = "Runners-up";
+    sub = "Lost the final. A brilliant run through a 32-team World Cup, but not the perfect 7–0.";
+  } else if (simMeta.qualified) {
+    verdict = `Lost in the ${simMeta.stageReached}`;
+    sub = `Topped your group in ${ordinal(simMeta.groupRank)}, but your knockout run ended in the ${simMeta.stageReached}.`;
   } else {
-    const stage = simResults[simResults.length - 1]?.stage ?? "";
-    if (won >= 5) { verdict = "So close — Runners-up"; sub = `Fell at the ${stage}. A brilliant run, but not the perfect 7–0.`; }
-    else if (won >= 3) { verdict = "Playoffs, then out"; sub = `Knocked out at the ${stage}. Your XI had gaps under pressure.`; }
-    else { verdict = "Early exit"; sub = `Undone at the ${stage}. Back to the drawing board.`; }
+    verdict = "Group Stage exit";
+    sub = `Finished ${ordinal(simMeta.groupRank)} in your group of 4 — not enough to reach the Round of 16.`;
   }
 
   const copyResult = () => {
     const lines = [
-      `7-0 IPL — ${verdict} (${won}/7)`,
+      `7-0 World Cup — ${verdict} (${won}/${played})`,
       ...players.map((p) => `${p.role.padEnd(4)} ${p.name} — ${p._src} (${p.overall})`),
     ];
     navigator.clipboard.writeText(lines.join("\n")).then(() => {
@@ -58,7 +66,8 @@ export default function ResultScreen() {
         <p className="text-slate-400 mb-4.5">{sub}</p>
 
         <div className="flex justify-center gap-6 flex-wrap mb-3">
-          <Stat label="Matches won" value={`${won}/7`} />
+          <Stat label="Matches won" value={`${won}/${played}`} />
+          <Stat label="Group finish" value={`${ordinal(simMeta.groupRank)} / 6`} />
           <Stat label="Batting" value={Math.round(simMeta.r.batting)} />
           <Stat label="Bowling" value={Math.round(simMeta.r.bowling)} />
           <Stat label="Overall" value={Math.round(simMeta.r.overall)} />
@@ -70,16 +79,56 @@ export default function ResultScreen() {
               <span className="truncate">
                 {p.name}
                 <small className="block text-slate-400 text-[10.5px]">{p.role} · {p._src}</small>
-                {p.cap && <span className="block mt-1"><CapBadge cap={p.cap} /></span>}
+                {p.award && <span className="block mt-1"><AwardBadge award={p.award} /></span>}
               </span>
               <span className="font-extrabold text-accent">{p.overall}</span>
             </div>
           ))}
         </div>
         <p className="text-slate-400 text-sm mt-4">
-          {formation.name} · {mode.name} · {difficulty.name} · {style.name} style
+          {mode.name} · {difficulty.name} · {style.name} style
         </p>
       </motion.div>
+
+      <div className="mt-6">
+        <h3 className="text-center font-bold mb-3">Your Group</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-[13px] border-collapse">
+            <thead>
+              <tr className="text-slate-400 text-left">
+                <th className="py-1.5 px-2 font-bold">#</th>
+                <th className="py-1.5 px-2 font-bold">Team</th>
+                <th className="py-1.5 px-2 font-bold text-center">P</th>
+                <th className="py-1.5 px-2 font-bold text-center">W</th>
+                <th className="py-1.5 px-2 font-bold text-center">L</th>
+                <th className="py-1.5 px-2 font-bold text-center">Runs +/-</th>
+                <th className="py-1.5 px-2 font-bold text-center">Pts</th>
+              </tr>
+            </thead>
+            <tbody>
+              {simMeta.groupStandings.map((row, i) => (
+                <tr
+                  key={i}
+                  className={clsx(
+                    "border-t border-line",
+                    row.isYou && "bg-accent/10 font-bold",
+                    i < 2 && "text-ink"
+                  )}
+                >
+                  <td className="py-1.5 px-2">{i + 1}</td>
+                  <td className="py-1.5 px-2">{row.isYou ? "You" : row.name}</td>
+                  <td className="py-1.5 px-2 text-center">{row.played}</td>
+                  <td className="py-1.5 px-2 text-center">{row.won}</td>
+                  <td className="py-1.5 px-2 text-center">{row.lost}</td>
+                  <td className="py-1.5 px-2 text-center">{row.runsFor - row.runsAgainst >= 0 ? "+" : ""}{row.runsFor - row.runsAgainst}</td>
+                  <td className="py-1.5 px-2 text-center">{row.points}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="text-[11.5px] text-slate-400 text-center mt-1.5">Top 2 advance to the semi-finals.</p>
+      </div>
 
       <div className="mt-6">
         <h3 className="text-center font-bold mb-3">Full Cup Run Scorecard</h3>
@@ -113,6 +162,12 @@ export default function ResultScreen() {
       )}
     </section>
   );
+}
+
+function ordinal(n: number): string {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return `${n}${s[(v - 20) % 10] || s[v] || s[0]}`;
 }
 
 function Stat({ label, value }: { label: string; value: string | number }) {

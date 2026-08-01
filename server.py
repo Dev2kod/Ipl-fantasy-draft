@@ -1,16 +1,16 @@
 """
-server.py -- zero-dependency web server for the "7-0 IPL" draft game.
+server.py -- zero-dependency web server for the "7-0 World Cup" draft game.
 
 Uses only the Python standard library (http.server + sqlite3) to serve the
 built React front-end (web/dist) and the JSON data API, so running the game
 requires no `pip install`. Building the front-end itself needs Node once
-(see web/README or the project README) -- the built output is plain static
-files after that, and this server has zero Python dependencies.
+(see README) -- the built output is plain static files after that, and this
+server has zero Python dependencies.
 
 Endpoints:
   GET /                -> web/dist/index.html (the React app)
   GET /<asset>         -> any other file under web/dist (JS/CSS/icons)
-  GET /api/data        -> the full dataset from ipl.db as JSON
+  GET /api/data        -> the full dataset from worldcup.db as JSON
 
 Run:  python server.py         (then open http://localhost:8000)
 """
@@ -22,7 +22,7 @@ import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "ipl.db")
+DB_PATH = os.path.join(BASE, "worldcup.db")
 WEB_DIST = os.path.join(BASE, "web", "dist")
 PORT = int(os.environ.get("PORT", "8000"))
 
@@ -41,28 +41,28 @@ CONTENT_TYPES = {
 def load_data():
     """Read the whole dataset from SQLite and shape it for the client."""
     if not os.path.exists(DB_PATH):
-        raise SystemExit("ipl.db not found. Run `python build_db.py` first.")
+        raise SystemExit("worldcup.db not found. Run `python build_db.py` first.")
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
-    franchises = {
+    countries = {
         r["code"]: {"code": r["code"], "name": r["name"], "colour": r["colour"]}
-        for r in c.execute("SELECT * FROM franchises")
+        for r in c.execute("SELECT * FROM countries")
     }
-    seasons = {
+    editions = {
         r["year"]: {
-            "champion": r["champion"], "runner_up": r["runner_up"],
-            "orange_cap": {"player": r["orange_cap_player"], "team": r["orange_cap_team"]} if r["orange_cap_player"] else None,
-            "purple_cap": {"player": r["purple_cap_player"], "team": r["purple_cap_team"]} if r["purple_cap_player"] else None,
+            "host": r["host"], "champion": r["champion"], "runner_up": r["runner_up"],
+            "golden_bat": {"player": r["golden_bat_player"], "team": r["golden_bat_team"]} if r["golden_bat_player"] else None,
+            "golden_ball": {"player": r["golden_ball_player"], "team": r["golden_ball_team"]} if r["golden_ball_player"] else None,
         }
-        for r in c.execute("SELECT * FROM seasons")
+        for r in c.execute("SELECT * FROM editions")
     }
 
     squads = []
     # materialize squad rows first: reusing one cursor for the inner players
     # query would otherwise clobber this outer iteration.
-    squad_rows = c.execute("SELECT * FROM squads ORDER BY season, franchise").fetchall()
+    squad_rows = c.execute("SELECT * FROM squads ORDER BY edition, country").fetchall()
     pcur = conn.cursor()
     pcur.row_factory = sqlite3.Row
     for s in squad_rows:
@@ -74,33 +74,32 @@ def load_data():
                 "bat": p["bat"],
                 "bowl": p["bowl"],
                 "overall": p["overall"],
-                "overseas": bool(p["overseas"]),
                 "captain": bool(p["captain"]),
-                "cap": p["cap"],
+                "award": p["award"],
                 "positions": p["positions"].split(",") if p["positions"] else [],
-                "price": p["price"],
             }
             for p in pcur.execute(
                 "SELECT * FROM players WHERE squad_id=? ORDER BY overall DESC", (s["id"],)
             ).fetchall()
         ]
-        fr = franchises.get(s["franchise"], {})
-        skeys = s.keys()
+        cty = countries.get(s["country"], {})
+        ed = editions.get(s["edition"], {})
         squads.append(
             {
                 "id": s["id"],
-                "franchise": s["franchise"],
-                "franchise_name": (s["display_name"] if "display_name" in skeys and s["display_name"] else fr.get("name", s["franchise"])),
-                "colour": fr.get("colour", "#555"),
-                "season": s["season"],
-                "finish": s["finish"] if "finish" in skeys else None,
-                "champion": seasons.get(s["season"], {}).get("champion") == s["franchise"],
-                "runner_up": seasons.get(s["season"], {}).get("runner_up") == s["franchise"],
+                "country": s["country"],
+                "country_name": s["display_name"] or cty.get("name", s["country"]),
+                "colour": cty.get("colour", "#555"),
+                "edition": s["edition"],
+                "host": ed.get("host", ""),
+                "finish": s["finish"],
+                "champion": ed.get("champion") == s["country"],
+                "runner_up": ed.get("runner_up") == s["country"],
                 "players": players,
             }
         )
     conn.close()
-    return {"franchises": franchises, "seasons": seasons, "squads": squads}
+    return {"countries": countries, "editions": editions, "squads": squads}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -148,7 +147,7 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     # fail fast with a helpful message if DB missing
     if not os.path.exists(DB_PATH):
-        print("ipl.db not found -- building it now...")
+        print("worldcup.db not found -- building it now...")
         import build_db
         build_db.build()
     if not os.path.isdir(WEB_DIST) or not os.path.isfile(os.path.join(WEB_DIST, "index.html")):
@@ -159,7 +158,7 @@ def main():
     server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     url = f"http://localhost:{PORT}"
     print("=" * 52)
-    print("  7-0 IPL  --  World Cup-style draft, IPL edition")
+    print("  7-0 World Cup  --  Draft your all-time XI")
     print(f"  Serving at  {url}")
     print("  Press Ctrl+C to stop.")
     print("=" * 52)

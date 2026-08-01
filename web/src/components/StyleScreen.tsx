@@ -3,17 +3,18 @@ import clsx from "clsx";
 import { ChevronDown, FileText } from "lucide-react";
 import { useGameStore } from "../store/useGameStore";
 import { STYLES } from "../engine/constants";
-import { tossText } from "../engine/simulate";
+import { tossText, GROUP_MATCHES } from "../engine/simulate";
 import { OptionCard, Button } from "./ui";
 import ScorecardModal from "./ScorecardModal";
 
 export default function StyleScreen() {
   const {
     style, setStyle, runSimulation, simResults, simMeta,
-    simExpanded, toggleMatchExpand, goToResult, openScorecard, showScorecardFor,
+    simExpanded, toggleMatchExpand, goToResult, goToKnockout, openScorecard, showScorecardFor,
   } = useGameStore();
 
   const started = simResults.length > 0;
+  const groupResults = simResults.slice(0, GROUP_MATCHES);
 
   return (
     <section className="max-w-4xl mx-auto px-5 py-6">
@@ -36,15 +37,15 @@ export default function StyleScreen() {
       {started && simMeta && (
         <div className="flex flex-col gap-2.5">
           <div className="text-center mb-2">
-            <h3 className="text-xl font-bold m-0 mb-1">The Cup Run</h3>
+            <h3 className="text-xl font-bold m-0 mb-1">Group Stage</h3>
             <p className="text-slate-400 text-sm m-0">
-              Team strength {Math.round(simMeta.teamStrength)} · {style.name} style · all {simResults.length} match
-              {simResults.length === 1 ? "" : "es"} simulated — click any to see details
+              Team strength {Math.round(simMeta.teamStrength)} · {style.name} style · your group of 4, all 3
+              matches played regardless of result — click any to see details
             </p>
           </div>
 
           <AnimatePresence>
-            {simResults.map((m, i) => {
+            {groupResults.map((m, i) => {
               const expanded = simExpanded.has(i);
               return (
                 <motion.div
@@ -100,9 +101,23 @@ export default function StyleScreen() {
           </AnimatePresence>
 
           <div className="text-center mt-4">
-            <Button size="lg" onClick={goToResult}>
-              See Final Result →
-            </Button>
+            {simMeta.qualified ? (
+              <>
+                <p className="text-win font-bold text-sm mb-2">
+                  Finished top 2 in your group — you're through to the knockouts!
+                </p>
+                <Button size="lg" onClick={goToKnockout}>
+                  Continue to Knockouts →
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className="text-loss font-bold text-sm mb-2">Group Stage complete — not enough to reach the knockouts.</p>
+                <Button size="lg" onClick={goToResult}>
+                  See Final Result →
+                </Button>
+              </>
+            )}
           </div>
         </div>
       )}

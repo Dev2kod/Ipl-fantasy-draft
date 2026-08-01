@@ -1,4 +1,4 @@
-import type { SignedPlayer } from "./types";
+import type { Player } from "./types";
 
 export interface TeamRatings {
   batting: number;
@@ -12,8 +12,10 @@ function clamp(v: number): number {
   return Math.max(0, Math.min(100, v));
 }
 
-/** Turn an XI into strength numbers (0-100-ish). Used live and in the sim. */
-export function teamRatings(players: SignedPlayer[]): TeamRatings {
+/** Turn an XI (or any player roster, e.g. a whole drafted squad) into strength
+ *  numbers (0-100-ish). Used live, in the sim for your XI, and to rate every
+ *  AI opponent squad from its own real player ratings. */
+export function teamRatings(players: Player[]): TeamRatings {
   if (players.length === 0) return { batting: 0, bowling: 0, balance: 0, overall: 0, bowlOptions: 0 };
 
   // Batting: best 7 batting contributions, top order weighted more.

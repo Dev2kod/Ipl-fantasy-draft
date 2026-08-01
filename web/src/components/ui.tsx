@@ -93,18 +93,34 @@ export function RatingBar({ label, value }: { label: string; value: number }) {
   );
 }
 
-export function CapBadge({ cap }: { cap: "orange" | "purple" | null }) {
-  if (!cap) return null;
-  const isOrange = cap === "orange";
+export function CricketBallGlyph({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 100 100" className={className} aria-hidden="true">
+      <circle cx="50" cy="50" r="48" fill="currentColor" />
+      <path
+        d="M50 2 Q 30 30 30 50 Q 30 70 50 98 M50 2 Q 70 30 70 50 Q 70 70 50 98"
+        stroke="#fff" strokeWidth="2.4" fill="none" opacity="0.75"
+      />
+      <path d="M32 12 Q42 26 40 46" stroke="#fff" strokeWidth="1.4" fill="none" opacity="0.5" strokeDasharray="2 3" />
+      <path d="M68 12 Q58 26 60 46" stroke="#fff" strokeWidth="1.4" fill="none" opacity="0.5" strokeDasharray="2 3" />
+      <path d="M32 88 Q42 74 40 54" stroke="#fff" strokeWidth="1.4" fill="none" opacity="0.5" strokeDasharray="2 3" />
+      <path d="M68 88 Q58 74 60 54" stroke="#fff" strokeWidth="1.4" fill="none" opacity="0.5" strokeDasharray="2 3" />
+    </svg>
+  );
+}
+
+export function AwardBadge({ award }: { award: "golden_bat" | "golden_ball" | null }) {
+  if (!award) return null;
+  const isBat = award === "golden_bat";
   return (
     <span
       className={clsx(
         "text-[9.5px] font-extrabold uppercase tracking-wide px-1.5 py-0.5 rounded",
-        isOrange ? "bg-orangecap/20 text-orangecap border border-orangecap/50" : "bg-purplecap/20 text-purplecap border border-purplecap/50"
+        isBat ? "bg-orangecap/20 text-orangecap border border-orangecap/50" : "bg-purplecap/20 text-purplecap border border-purplecap/50"
       )}
-      title={isOrange ? "Orange Cap — most runs that season" : "Purple Cap — most wickets that season"}
+      title={isBat ? "Golden Bat — most runs at that World Cup" : "Golden Ball — most wickets at that World Cup"}
     >
-      {isOrange ? "🟠 Orange Cap" : "🟣 Purple Cap"}
+      {isBat ? "🏏 Golden Bat" : "🔴 Golden Ball"}
     </span>
   );
 }

@@ -1,94 +1,102 @@
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import clsx from "clsx";
-import { Shuffle, CalendarDays, Dices, Wallet } from "lucide-react";
+import { Shuffle, CalendarDays, Dices, ArrowLeftRight } from "lucide-react";
 import { useGameStore, isMarketDead } from "../store/useGameStore";
-import {
-  overseasCount, filledCount, switchCandidates, openPositions,
-  eligibleRoleFor, eligibleRoleForAuction, eligiblePositionFor,
-} from "../engine/draft";
+import { filledCount, switchCandidates, openPositions, eligiblePositionsFor, validMoveTargets } from "../engine/draft";
 import { teamRatings } from "../engine/ratings";
-import { ROLE_LABEL, MAX_OVERSEAS, AUCTION_PURSE } from "../engine/constants";
+import { POSITION_FORMATION, FLAGS } from "../engine/constants";
 import { finishLabel } from "../engine/format";
-import { Button, Pill, RatingBar, CapBadge } from "./ui";
-import type { Player, Role, Position, SignedPlayer } from "../engine/types";
+import { Button, Pill, RatingBar, AwardBadge } from "./ui";
+import type { Player, Position, SignedPlayer } from "../engine/types";
 
 function XIPanel() {
-  const { slots, switchesLeft, mode, draftMode, purseLeft, goToStyle } = useGameStore();
-  const flaggedRole: Partial<Record<Role, boolean>> = {};
+  const { slots, switchesLeft, mode, movePlayer, goToStyle } = useGameStore();
+  const [openMoveFor, setOpenMoveFor] = useState<number | null>(null);
   const players = slots.map((s) => s.player).filter((p): p is SignedPlayer => p !== null);
   const r = teamRatings(players);
   const done = filledCount(slots) === 11;
-  const ovsUsed = overseasCount(slots);
 
   return (
-    <aside className="bg-panel border border-line rounded-2xl p-4 shadow-xl flex flex-col">
-      <div className="flex justify-between items-center mb-2.5">
-        <h2 className="text-lg font-bold m-0">Your XI</h2>
-        <div className="flex gap-2 flex-wrap justify-end">
+    <aside className="bg-panel border border-line rounded-2xl p-3 shadow-xl flex flex-col min-h-0 h-full">
+      <div className="flex justify-between items-center mb-2 shrink-0">
+        <h2 className="text-base font-bold m-0">Your XI</h2>
+        <div className="flex gap-1.5 flex-wrap justify-end">
           <Pill>{filledCount(slots)} / 11</Pill>
           <Pill tone="accent">Switches: {switchesLeft}</Pill>
         </div>
       </div>
-      {draftMode.id === "auction" && (
-        <div className="text-[12.5px] text-slate-400 mb-2 flex items-center gap-1.5">
-          <Wallet size={13} />
-          Purse: <b className={clsx(purseLeft < 5 ? "text-loss" : "text-accent")}>₹{purseLeft.toFixed(1)}cr</b>
-          <span className="text-slate-500"> / ₹{AUCTION_PURSE}cr</span>
-        </div>
-      )}
-      <div className="text-[12.5px] text-slate-400 mb-2">
-        Overseas: <b className={clsx(ovsUsed >= MAX_OVERSEAS ? "text-loss" : "text-ink")}>{ovsUsed} / {MAX_OVERSEAS}</b>
-      </div>
 
-      <ol className="list-none m-0 p-0 flex flex-col gap-1.5 mb-3.5">
+      <ol className="list-none m-0 p-0 flex flex-col gap-1 mb-2.5 flex-1 min-h-0 overflow-y-auto pr-1">
         {slots.map((slot, i) => {
-          let needNow = false;
-          if (!slot.player && !slot.position && !flaggedRole[slot.role]) { needNow = true; flaggedRole[slot.role] = true; }
-          const tagLabel = slot.position ?? slot.role;
+          const targets = slot.player ? validMoveTargets(i, slots) : [];
           return (
-            <motion.li
-              key={i}
-              layout
-              className={clsx(
-                "flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm border",
-                slot.player ? "border-accent2 bg-panel2" : "border-dashed border-line bg-panel2",
-                needNow && !slot.player && "ring-1 ring-accent/40"
-              )}
-            >
-              <span
+            <motion.li key={i} layout>
+              <div
                 className={clsx(
-                  "text-[10px] font-extrabold tracking-wide px-1.5 py-0.5 rounded text-center",
-                  slot.position ? "min-w-[92px]" : "min-w-11",
-                  needNow && !slot.player ? "bg-accent text-[#20160a]" : "bg-panel border border-line text-slate-400"
+                  "flex items-center gap-2 px-2 py-1 rounded-lg text-[12.5px] border",
+                  slot.player ? "border-accent2 bg-panel2" : "border-dashed border-line bg-panel2"
                 )}
               >
-                {tagLabel}
-              </span>
-              {slot.player ? (
-                <span className="flex-1 truncate flex items-center gap-1.5">
-                  {slot.player.name}
-                  {slot.player.overseas && <span className="w-1.5 h-1.5 rounded-full bg-accent2 inline-block" title="Overseas" />}
-                  <CapBadge cap={slot.player.cap} />
-                  <span className="block text-[11px] text-slate-400">{slot.player._src}</span>
+                <span
+                  className={clsx(
+                    "text-[9.5px] font-extrabold tracking-wide px-1.5 py-0.5 rounded text-center min-w-[76px] shrink-0",
+                    "bg-panel border border-line text-slate-400"
+                  )}
+                >
+                  {slot.position}
                 </span>
-              ) : (
-                <span className="flex-1 text-slate-400">{slot.position ? "needed" : `${ROLE_LABEL[slot.role]} needed`}</span>
+                {slot.player ? (
+                  <span className="flex-1 min-w-0 truncate flex items-center gap-1.5">
+                    {slot.player.name}
+                    <AwardBadge award={slot.player.award} />
+                    <span className="hidden lg:inline text-[10.5px] text-slate-400">{slot.player._src}</span>
+                  </span>
+                ) : (
+                  <span className="flex-1 text-slate-400">needed</span>
+                )}
+                {slot.player && mode.id !== "almanac" && <span className="font-extrabold text-accent shrink-0">{slot.player.overall}</span>}
+                {slot.player && targets.length > 0 && (
+                  <button
+                    type="button"
+                    title="Move this player to another position they fit"
+                    onClick={() => setOpenMoveFor(openMoveFor === i ? null : i)}
+                    className={clsx(
+                      "shrink-0 rounded p-0.5 border transition-colors cursor-pointer",
+                      openMoveFor === i ? "border-accent text-accent bg-accent/10" : "border-line text-slate-400 hover:border-accent2 hover:text-accent2"
+                    )}
+                  >
+                    <ArrowLeftRight size={12} />
+                  </button>
+                )}
+              </div>
+              {openMoveFor === i && (
+                <div className="flex flex-wrap gap-1 mt-1 mb-0.5 pl-1">
+                  {targets.map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => { movePlayer(i, t); setOpenMoveFor(null); }}
+                      className="text-[10.5px] font-bold bg-panel border border-line rounded-full px-2 py-0.5 hover:border-accent hover:text-accent transition-colors cursor-pointer"
+                    >
+                      → {slots[t].position}{slots[t].player ? ` (swap ${slots[t].player!.name})` : ""}
+                    </button>
+                  ))}
+                </div>
               )}
-              {slot.player && draftMode.id === "auction" && <span className="text-[11px] text-slate-400">₹{slot.player.price}cr</span>}
-              {slot.player && mode.id !== "almanac" && <span className="font-extrabold text-accent">{slot.player.overall}</span>}
             </motion.li>
           );
         })}
       </ol>
 
-      <div className="flex flex-col gap-2 mb-3">
+      <div className="flex flex-col gap-1.5 mb-2.5 shrink-0">
         <RatingBar label="Batting" value={r.batting} />
         <RatingBar label="Bowling" value={r.bowling} />
         <RatingBar label="Balance" value={r.balance} />
         <RatingBar label="Overall" value={r.overall} />
       </div>
 
-      <Button onClick={goToStyle} disabled={!done} className="w-full">
+      <Button onClick={goToStyle} disabled={!done} className="w-full shrink-0">
         Lock XI &amp; choose style →
       </Button>
     </aside>
@@ -97,159 +105,196 @@ function XIPanel() {
 
 function MarketPanel() {
   const {
-    data, currentSquad, slots, switchesLeft, lastMessage, mode, draftMode, purseLeft,
+    data, currentSquad, slots, switchesLeft, lastMessage, mode,
     drawNext, doSwitch, draftPlayer, usedPlayerNames, turnExcludedSquadIds,
   } = useGameStore();
+  const [choosingFor, setChoosingFor] = useState<string | null>(null);
+
+  useEffect(() => setChoosingFor(null), [currentSquad?.id]);
 
   const done = filledCount(slots) === 11;
   const dead = currentSquad ? isMarketDead() : false;
 
-  const fitFor = (p: Player): Role | Position | null => {
-    if (draftMode.id === "positions") return eligiblePositionFor(p, slots, usedPlayerNames);
-    if (draftMode.id === "auction") return eligibleRoleForAuction(p, slots, usedPlayerNames, purseLeft, data?.squads ?? []);
-    return eligibleRoleFor(p, slots, usedPlayerNames);
-  };
+  const optionsFor = (p: Player): Position[] => eligiblePositionsFor(p, slots, usedPlayerNames);
 
-  let needHint: string;
-  if (draftMode.id === "positions") {
-    const counts = new Map<string, number>();
-    openPositions(slots).forEach((pos) => counts.set(pos, (counts.get(pos) ?? 0) + 1));
-    needHint = [...counts.entries()].map(([pos, n]) => (n > 1 ? `${n}× ${pos}` : pos)).join(" · ");
-  } else {
-    const open: Record<Role, number> = { BAT: 0, WK: 0, ALL: 0, BOWL: 0 };
-    slots.forEach((s) => { if (!s.player) open[s.role]++; });
-    needHint = (Object.entries(open) as [Role, number][]).filter(([, n]) => n > 0).map(([role, n]) => `${n}× ${ROLE_LABEL[role]}`).join(" · ");
-  }
+  const counts = new Map<string, number>();
+  openPositions(slots).forEach((pos) => counts.set(pos, (counts.get(pos) ?? 0) + 1));
+  const needHint = [...counts.entries()].map(([pos, n]) => (n > 1 ? `${n}× ${pos}` : pos)).join(" · ");
 
   const teamCands = currentSquad && data ? switchCandidates(data.squads, currentSquad, "team", turnExcludedSquadIds) : [];
-  const seasonCands = currentSquad && data ? switchCandidates(data.squads, currentSquad, "season", turnExcludedSquadIds) : [];
+  const editionCands = currentSquad && data ? switchCandidates(data.squads, currentSquad, "edition", turnExcludedSquadIds) : [];
+
+  const positionOrder = POSITION_FORMATION.map((s) => s.position);
+  const positionRank = (p: Player): number => {
+    const idx = positionOrder.indexOf(p.positions[0]);
+    return idx === -1 ? positionOrder.length : idx;
+  };
 
   const players: Player[] = currentSquad
     ? [...currentSquad.players].sort((a, b) => {
-        const ea = fitFor(a) ? 1 : 0;
-        const eb = fitFor(b) ? 1 : 0;
+        const ea = optionsFor(a).length > 0 ? 1 : 0;
+        const eb = optionsFor(b).length > 0 ? 1 : 0;
         if (ea !== eb) return eb - ea;
-        return b.overall - a.overall;
+        const pa = positionRank(a);
+        const pb = positionRank(b);
+        if (pa !== pb) return pa - pb;
+        return a.name.localeCompare(b.name);
       })
     : [];
 
-  return (
-    <div className="bg-panel border border-line rounded-2xl p-4 shadow-xl">
-      <div className="flex justify-between items-start gap-3 flex-wrap mb-2">
-        <AnimatePresence mode="wait">
-          {currentSquad ? (
-            <motion.div
-              key={currentSquad.id}
-              initial={{ opacity: 0, x: -8 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0 }}
-              className="border-l-4 pl-3"
-              style={{ borderLeftColor: currentSquad.colour }}
-            >
-              <div className="text-xl font-extrabold" style={{ color: currentSquad.colour }}>
-                {currentSquad.franchise_name}
-              </div>
-              <div className="text-[13px] text-slate-400 tracking-wide">
-                SEASON {currentSquad.season} · {finishLabel(currentSquad)}
-              </div>
-            </motion.div>
-          ) : (
-            <div className="text-slate-400 border-l-4 border-line pl-3">Roll to draw a squad</div>
-          )}
-        </AnimatePresence>
+  const handlePick = (p: Player) => {
+    const opts = optionsFor(p);
+    if (opts.length === 0) return;
+    if (opts.length === 1) { draftPlayer(p.name, opts[0]); return; }
+    setChoosingFor(choosingFor === p.name ? null : p.name);
+  };
 
-        <div className="flex gap-2 flex-wrap">
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={done || !currentSquad || switchesLeft <= 0 || teamCands.length === 0}
-            onClick={() => doSwitch("team")}
-            title={teamCands.length === 0 ? "No other team available for this season" : "Same season, a different franchise"}
+  return (
+    <div className="bg-panel border border-line rounded-2xl p-3 shadow-xl flex flex-col min-h-0 h-full">
+      <AnimatePresence mode="wait">
+        {currentSquad ? (
+          <motion.div
+            key={currentSquad.id}
+            initial={{ opacity: 0, scale: 0.92, y: -10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.96 }}
+            transition={{ type: "spring", stiffness: 260, damping: 22 }}
+            className="relative overflow-hidden rounded-2xl p-2.5 mb-2.5 shrink-0"
+            style={{
+              background: `linear-gradient(135deg, ${currentSquad.colour}22 0%, transparent 65%)`,
+              border: `1.5px solid ${currentSquad.colour}55`,
+            }}
           >
-            <span className="inline-flex items-center gap-1.5"><Shuffle size={15} /> Same season · other team</span>
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={done || !currentSquad || switchesLeft <= 0 || seasonCands.length === 0}
-            onClick={() => doSwitch("season")}
-            title={seasonCands.length === 0 ? "This franchise has no other season in the data" : "Same franchise, a different season"}
-          >
-            <span className="inline-flex items-center gap-1.5"><CalendarDays size={15} /> Same team · other season</span>
-          </Button>
-          <Button
-            size="sm"
-            disabled={done || (!!currentSquad && !dead)}
-            onClick={drawNext}
-          >
-            <span className="inline-flex items-center gap-1.5"><Dices size={15} /> {dead ? "Dead market — draw new squad (free)" : "Draw a squad"}</span>
-          </Button>
-        </div>
+            <span
+              className="absolute -right-6 -top-6 w-24 h-24 rounded-full opacity-20"
+              style={{ background: currentSquad.colour }}
+            />
+            <div className="relative flex items-center gap-2.5">
+              <span
+                className="w-11 h-11 rounded-xl flex items-center justify-center text-2xl shrink-0"
+                style={{ background: currentSquad.colour }}
+              >
+                {FLAGS[currentSquad.country] ?? "🏏"}
+              </span>
+              <div className="min-w-0">
+                <div className="text-xl font-black leading-tight truncate" style={{ color: currentSquad.colour }}>
+                  {currentSquad.country_name}
+                </div>
+                <div className="text-[12px] text-slate-400 tracking-wide font-bold">
+                  WORLD CUP {currentSquad.edition} · {finishLabel(currentSquad)}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        ) : (
+          <div className="text-slate-400 border-2 border-dashed border-line rounded-2xl p-4 mb-2.5 text-center shrink-0">
+            Draw a squad to open the market
+          </div>
+        )}
+      </AnimatePresence>
+
+      <div className="flex justify-end gap-2 flex-wrap mb-2 shrink-0">
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={done || !currentSquad || switchesLeft <= 0 || teamCands.length === 0}
+          onClick={() => doSwitch("team")}
+          title={teamCands.length === 0 ? "No other team available for this World Cup" : "Same World Cup, a different team"}
+        >
+          <span className="inline-flex items-center gap-1.5"><Shuffle size={15} /> Same World Cup · other team</span>
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={done || !currentSquad || switchesLeft <= 0 || editionCands.length === 0}
+          onClick={() => doSwitch("edition")}
+          title={editionCands.length === 0 ? "This team has no other World Cup in the data" : "Same team, a different World Cup"}
+        >
+          <span className="inline-flex items-center gap-1.5"><CalendarDays size={15} /> Same team · other World Cup</span>
+        </Button>
+        <Button
+          size="sm"
+          disabled={done || (!!currentSquad && !dead)}
+          onClick={drawNext}
+        >
+          <span className="inline-flex items-center gap-1.5"><Dices size={15} /> {dead ? "Dead market — draw new squad (free)" : "Draw a squad"}</span>
+        </Button>
       </div>
 
-      <p className="text-[13px] text-slate-400 mb-3">
+      <p className="text-[12.5px] text-slate-400 mb-2 shrink-0">
         {done ? "XI complete!" : needHint ? <>Still needed: <b className="text-accent">{needHint}</b></> : ""}
       </p>
 
-      <div className="grid gap-2.5" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))" }}>
-        <AnimatePresence>
-          {players.map((p) => {
-            const fit = fitFor(p);
-            const cantAfford = draftMode.id === "auction" && p.price > purseLeft;
-            const overseasBlocked = p.overseas && overseasCount(slots) >= MAX_OVERSEAS && fit === null;
+      <div className="flex flex-col gap-1.5 flex-1 min-h-0 overflow-y-auto pr-1.5">
+        <AnimatePresence mode="popLayout">
+          {players.map((p, i) => {
+            const opts = optionsFor(p);
+            const fit = opts.length > 0;
+            const choosing = choosingFor === p.name;
             return (
               <motion.div
-                key={p.name}
-                layout
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                whileHover={fit ? { y: -3 } : {}}
-                onClick={() => fit && draftPlayer(p.name, fit)}
+                key={`${currentSquad?.id}-${p.name}`}
+                initial={{ opacity: 0, y: 10, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.97 }}
+                transition={{ delay: Math.min(i, 12) * 0.02, type: "spring", stiffness: 380, damping: 28 }}
+                whileHover={fit ? { x: 3 } : {}}
+                whileTap={fit ? { scale: 0.99 } : {}}
                 className={clsx(
-                  "relative bg-panel2 border-[1.5px] rounded-xl p-3 transition-colors",
-                  fit ? "border-line hover:border-accent cursor-pointer" : "border-line opacity-40 grayscale-[0.5] cursor-not-allowed"
+                  "relative bg-panel2 border-2 rounded-xl px-3.5 py-2 transition-colors shadow-sm",
+                  fit ? "border-line" : "border-line opacity-40 grayscale-[0.5]",
+                  choosing && "border-accent"
                 )}
-                title={overseasBlocked ? "Overseas quota (4) full" : cantAfford ? "Can't afford — not enough purse left" : undefined}
               >
-                {p.captain && <span className="absolute top-2 right-11 text-[10px] font-extrabold bg-accent text-[#20160a] rounded px-1">C</span>}
-                <div className="flex justify-between items-start gap-1.5">
-                  <div>
-                    <div className="font-extrabold text-[15px] leading-tight">{p.name}</div>
-                    <div className="text-[11px] text-slate-400 mt-0.5">
-                      {draftMode.id === "positions" ? p.positions.join(", ") : `${ROLE_LABEL[p.role]} · ${p.sub_role}`}
+                <div
+                  onClick={() => handlePick(p)}
+                  className={clsx("flex items-center gap-3", fit ? "cursor-pointer" : "cursor-not-allowed")}
+                >
+                  {p.captain && <span className="text-[10px] font-extrabold bg-accent text-[#20160a] rounded-md px-1.5 py-0.5 shrink-0">C</span>}
+                  <div className="min-w-0 flex-1">
+                    <div className="font-extrabold text-[14.5px] leading-tight truncate">{p.name}</div>
+                    <div className="text-[11px] text-slate-400">{p.positions.join(", ")}</div>
+                  </div>
+                  {p.award && <AwardBadge award={p.award} />}
+                  {mode.id !== "almanac" && (
+                    <div className="hidden sm:flex gap-3 text-[11px] text-slate-400 shrink-0">
+                      <span>Bat <b className="text-ink">{p.bat}</b></span>
+                      <span>Bowl <b className="text-ink">{p.bowl}</b></span>
                     </div>
-                  </div>
-                  {mode.id === "almanac" ? (
-                    <div className="text-base text-slate-400">?</div>
-                  ) : (
-                    <div className="text-[22px] font-black text-accent leading-none">{p.overall}</div>
                   )}
+                  <div className="text-xl font-black text-accent leading-none w-9 text-right shrink-0">
+                    {mode.id === "almanac" ? <span className="text-slate-400 text-base">?</span> : p.overall}
+                  </div>
                 </div>
-                {mode.id !== "almanac" && (
-                  <div className="flex gap-3 mt-2 text-xs text-slate-400">
-                    <span>Bat <b className="text-ink">{p.bat}</b></span>
-                    <span>Bowl <b className="text-ink">{p.bowl}</b></span>
+                {choosing && (
+                  <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-line">
+                    <span className="text-[11px] text-slate-400 self-center">Place as:</span>
+                    {opts.map((opt) => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => { draftPlayer(p.name, opt); setChoosingFor(null); }}
+                        className="text-[11.5px] font-bold bg-panel border border-accent2 text-accent2 rounded-full px-2.5 py-1 hover:bg-accent2 hover:text-white transition-colors cursor-pointer"
+                      >
+                        {opt}
+                      </button>
+                    ))}
                   </div>
                 )}
-                {draftMode.id === "auction" && (
-                  <div className={clsx("mt-2 text-xs font-bold", cantAfford ? "text-loss" : "text-accent2")}>₹{p.price}cr</div>
-                )}
-                {p.cap && <div className="mt-2"><CapBadge cap={p.cap} /></div>}
-                {p.overseas && <span className="absolute bottom-2.5 right-3 text-[10px] font-bold text-accent2">✈ OVERSEAS</span>}
               </motion.div>
             );
           })}
         </AnimatePresence>
       </div>
-      <p className="text-accent2 text-sm mt-3 min-h-5">{lastMessage}</p>
+      <p className="text-accent2 text-sm mt-2 min-h-5 shrink-0">{lastMessage}</p>
     </div>
   );
 }
 
 export default function DraftScreen() {
   return (
-    <section className="max-w-6xl mx-auto px-5 py-6">
-      <div className="grid gap-5" style={{ gridTemplateColumns: "340px 1fr" }}>
+    <section className="flex-1 min-h-0 max-w-6xl w-full mx-auto px-5 py-4 flex flex-col">
+      <div className="grid gap-4 flex-1 min-h-0" style={{ gridTemplateColumns: "320px 1fr" }}>
         <XIPanel />
         <MarketPanel />
       </div>
