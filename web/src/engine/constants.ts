@@ -42,14 +42,23 @@ export const MODES: Mode[] = [
   { id: "almanac", name: "Almanac", desc: "Ratings hidden — a pure memory test. Do you remember who was elite that World Cup?" },
 ];
 
-/** `opp` is the target overall strength (0-100) real historical squads are
- *  weighted toward when the tournament draws your group and knockout
- *  opponents; `spread` is how tightly that pool is held to the target (a
- *  smaller spread means a more consistently strong/weak field). */
+/**
+ * `opp` is the target overall strength (0-100) real historical squads are
+ * weighted toward when the tournament draws the whole 32-team field;
+ * `spread` is how tightly the pool is held to that target (a smaller spread
+ * means a more consistently strong/weak field).
+ *
+ * For scale, the 143 real squads span roughly 59-89 with a median near 81,
+ * so 70 sits around the weakest tenth, 80 lands on the median, and 90 is
+ * just past the strongest squad in the dataset -- meaning Dynasty always
+ * reaches for the very top of the era. The spreads tighten as difficulty
+ * rises so the three tiers stay clearly distinguishable instead of all
+ * blurring toward the median.
+ */
 export const DIFFICULTIES: Difficulty[] = [
-  { id: "easy", name: "Warm-up", opp: 58, spread: 14, desc: "Weaker historical squads fill the World Cup. A gentle path to 7–0." },
-  { id: "normal", name: "Contender", opp: 72, spread: 11, desc: "A realistic field of real World Cup squads. The intended challenge." },
-  { id: "brutal", name: "Dynasty", opp: 85, spread: 8, desc: "Champion-calibre historical squads everywhere. Only the very best XI survives." },
+  { id: "easy", name: "Warm-up", opp: 70, spread: 7, desc: "Weaker historical squads fill the World Cup. A gentle path to 7–0." },
+  { id: "normal", name: "Contender", opp: 80, spread: 6, desc: "A realistic field of real World Cup squads. The intended challenge." },
+  { id: "brutal", name: "Dynasty", opp: 90, spread: 5, desc: "Champion-calibre historical squads everywhere. Only the very best XI survives." },
 ];
 
 export const STYLES: Style[] = [
