@@ -3,9 +3,11 @@
 A cricket adaptation of the viral football game **[7a0 / Sete a Zero](https://7a0.org/en)**
 (a World Cup draft simulator). You draw **national squads from every ODI Cricket
 World Cup, 1975 to 2023** (13 editions), build an XI one pick at a time, then
-enter a real World Cup format: a 6-team group (you play all 5 group matches
-regardless of any single result), then semi-final and final if you finish
-top 2 — chasing a perfect, unbeaten **7-0**.
+enter a real 32-team World Cup format: **8 groups of 4** (you play all 3 group
+matches regardless of any single result), then a **Round of 16, Quarter-Final,
+Semi-Final, and Final** if you finish top 2 — each knockout match played out
+one at a time on its own FIFA-style match-day screen — chasing a perfect,
+unbeaten **7-0**.
 
 Backend: Python standard library + SQLite, **zero `pip install`**, real World Cup
 data for **every team in every edition** (143 team-editions, 2,050 players, 1975–2023).
@@ -22,8 +24,10 @@ Front-end: a full **React + TypeScript** app (Tailwind, Framer Motion, Zustand).
 | Fill a football formation (4-3-3, …)   | Fill the fixed cricket XI shape (2 Openers, 4 Middle-order, Keeper, 4 Bowlers) |
 | Only 3 skips, one pick per turn        | 3 free switches **per pick**, one player per turn |
 | Classic (ratings) vs Almanac (memory)  | Same two modes                               |
-| Simulate a run; chase a **7-0**        | Real group + knockout format; win every match you play, up to 7, unbeaten |
+| Simulate a run; chase a **7-0**        | Real 32-team group + knockout format; win every match you play, up to 7, unbeaten |
 | —                                      | Golden Bat / Golden Ball winners rate as the standout of that World Cup |
+| —                                      | Knockout matches play out one at a time on a dedicated pre-match/live/result screen |
+| —                                      | Tournament-wide Most Runs / Most Wickets leaderboard, across all 32 teams |
 
 ---
 
@@ -42,10 +46,31 @@ build` in `web/`) because it compiles React/TypeScript into plain static files.
 After that one-time build, running the game only needs Python — no Node required
 at runtime, and the Python side still needs **zero pip installs**.
 
-Set a different port with `PORT=9000 python server.py`.
+Set a different port with `PORT=9000 python server.py`. The server binds to
+`127.0.0.1` by default — it's a single-player local game, so it isn't exposed
+to the rest of your network unless you opt in with `HOST=0.0.0.0`.
 
 For front-end development with hot reload: `cd web && npm run dev` (proxies
 `/api` to `python server.py` running on port 8000).
+
+### Tests
+
+```bash
+python -m unittest test_build_db     # dataset + rating-model invariants (stdlib only)
+cd web && npm test                   # draft + simulation engine (vitest)
+```
+
+The engine has a lot of load-bearing invariants that are easy to break by
+accident — cricket's chase rules, scorecard arithmetic, bracket propagation,
+draft deadlock-freedom, the rarity of a 99 rating — so they're pinned down by
+tests rather than re-checked by hand. The front-end suite runs against a real
+snapshot of the dataset (`web/src/engine/__tests__/fixtures/dataset.json`),
+since several invariants depend on the genuine distribution of position tags
+across historical squads; regenerate it with `npm run fixture` (with the
+server running) after changing `build_db.py`.
+
+Both suites use seeded RNG, so a failure is always reproducible rather than
+a one-in-a-thousand flake.
 
 ---
 
@@ -79,26 +104,41 @@ draft system in the game.
      long as that player is tagged back for the vacated slot too.
 4. **Lock the XI**, pick a **match style** (Aggressive / Balanced / Defensive),
    and **simulate the tournament**:
-   * You're drawn into a **6-team group** (you + 5 real historical squads).
-     Every team plays every other team once — **you play all 5 group
-     matches regardless of any single result**, exactly like a real World
-     Cup group; only the final table decides who advances. A second,
-     AI-only 6-team group plays out in parallel to produce your potential
-     knockout opponents.
-   * **Top 2 in your group** (ranked by points, then run difference)
-     advance to the **Semi-Final** against a crossed-over qualifier from
-     the other group. Win it, and you reach the **Final** against whoever
-     won the other semi-final.
-   * Difficulty (Warm-up / Contender / Dynasty) controls how strong the
-     real historical squads filling the World Cup are — Warm-up leans
-     weaker sides, Dynasty is champion-calibre squads throughout.
-   * All matches render immediately — click any to expand the toss result,
-     a randomised bat/bowl decision, and a highlight. Open the **full ODI
-     scorecard** (50-over batting + bowling lines for both sides, real
-     bowler-over limits) for any match. The Result screen also shows your
-     full group table.
+   * You're drawn into one of **8 groups of 4** (you + 3 real historical
+     squads; the other 7 groups are 4 real squads each, filling out a genuine
+     32-team World Cup). Every team plays every other team in its group once
+     — **you play all 3 group matches regardless of any single result**,
+     exactly like a real World Cup group; only the final table (points, then
+     run difference) decides who advances.
+   * **Top 2 in your group** advance to a **Round of 16**, crossed over
+     against a qualifier from another group, real-tournament-style (group
+     winners face a different group's runner-up). Win it, and you move
+     through the **Quarter-Final**, **Semi-Final**, and **Final** — the rest
+     of the 32-team bracket plays out in the background regardless of how far
+     you get, so the field is always internally consistent.
+   * Difficulty (Warm-up / Contender / Dynasty) controls how strong the real
+     historical squads filling the whole 32-team World Cup are — Warm-up
+     leans weaker sides, Dynasty is champion-calibre squads throughout.
+   * **Group matches** render together on one screen, with a toss result,
+     bat/bowl decision, and highlight for each.
+   * **The knockouts get their own bracket screen** — a full Round of 16 →
+     Quarter-Final → Semi-Final → Final tree, every match in it already
+     resolved (the whole 32-team field, not just your path), with your route
+     highlighted. Your own next match stays hidden until you click it, which
+     pops up a FIFA-inspired match-day dialog **on top of** the bracket: a
+     pre-match face-off (team badges, round banner, rival strength), a brief
+     "Simulating…" moment, then a big scoreline reveal. Close it and the
+     bracket updates with the real result, unlocking your next match if you
+     won.
+   * Open the **full ODI scorecard** (50-over batting + bowling lines for
+     both sides, real bowler-over limits) for any match, group or knockout —
+     the highlight text under every score is read directly off that same
+     scorecard, so it can never disagree with the batting/bowling figures.
 5. Win every match you play — up to seven — and lift the trophy unbeaten:
-   the perfect 7-0.
+   the perfect 7-0. The Result screen shows your full group table (with the
+   other 7 groups a click away), plus a **tournament-wide Most Runs / Most
+   Wickets leaderboard** across all 32 teams and every match played, not just
+   yours — a real "Golden Bat/Golden Ball race" for the whole World Cup.
 
 ---
 
@@ -116,7 +156,7 @@ draft system in the game.
     ├── src/
     │   ├── engine/        # pure game logic: draft, ratings, ODI simulation, scorecards
     │   ├── store/         # zustand game state
-    │   └── components/    # Setup / Draft / Style / Result screens, UI atoms
+    │   └── components/    # Setup / Draft / Style / Bracket (+ match-day popup) / Result screens, UI atoms
     └── dist/              # built static output — this is what server.py serves
 ```
 
@@ -126,7 +166,7 @@ draft system in the game.
 - **editions** `(year, host, champion, runner_up, n_teams, golden_bat_player, golden_bat_team, golden_ball_player, golden_ball_team)`
 - **squads** `(id, country, edition, display_name, finish)` — a drawable team-edition,
   `finish` is that team's final tournament position
-- **players** `(id, squad_id, name, role, sub_role, bat, bowl, overall, captain, award, positions)`
+- **players** `(id, squad_id, name, role, tier, bat, bowl, overall, captain, award, positions)`
   — `award` is `'golden_bat'`, `'golden_ball'`, or `NULL`; `positions` is a
   comma-separated list of real-life job tags (see below)
 
@@ -214,31 +254,74 @@ in the squad data.
   keeping the full 143-squad pool in play for the whole draft.
 - Stress-tested across the full 1975-2023 dataset — 100% completion, zero
   duplicate-player-name XIs, position tags always honored.
-- **Real group + knockout format, not a single-elimination gauntlet:** you're
-  drawn into a genuine 6-team round-robin group and play out all 5 matches no
-  matter what happens in any one of them — only the final standings (points,
-  then run difference) decide qualification, exactly like a real World Cup.
-  A parallel AI-only group produces the crossed-over knockout opponents. Every
-  match's win probability is a logistic function of the strength gap between
-  the two sides, so a well-built XI is genuinely rewarded while a careless
-  draft rarely wins its group.
+- **Real 32-team group + knockout format, not a single-elimination gauntlet:**
+  you're drawn into a genuine 4-team round-robin group and play out all 3
+  matches no matter what happens in any one of them — only the final
+  standings (points, then run difference) decide qualification, exactly like
+  a real World Cup. The other 7 groups of 4 play out fully in the background,
+  and the Round of 16 draw crosses group winners against a different group's
+  runner-up. Every match's win probability is a logistic function of the
+  strength gap between the two sides, so a well-built XI is genuinely
+  rewarded while a careless draft rarely wins its group.
+- **The entire bracket resolves consistently, whether or not you're in it:**
+  a single generic knockout-bracket simulator plays every Round of 16,
+  Quarter-Final, Semi-Final, and Final match — yours in full scorecard detail,
+  everyone else's lightly — so the rest of the 32-team field is always
+  internally consistent regardless of how far your own run goes, and the full
+  bracket (every match, every round) is available to visualize, not just the
+  handful of matches you personally played.
+- **A real bracket screen, not just a match list:** the knockout stage renders
+  as an actual Round of 16 → Final tree with every match already resolved
+  except your own next one, which pops up as a FIFA-inspired match-day dialog
+  over the bracket — closing it reveals the real result in place and unlocks
+  your next match if you advanced.
 - **Difficulty picks the field, not an escalating rival:** Warm-up, Contender,
   and Dynasty weight which real historical squads (rated from their own
-  players' ratings) are drawn to fill the rest of the World Cup, from weaker
-  sides to champion-calibre ones — Dynasty makes a perfect run a true
+  players' ratings) are drawn to fill the whole 32-team World Cup, from
+  weaker sides to champion-calibre ones — Dynasty makes a perfect run a true
   achievement.
+- **Tournament-wide stats leaderboard, grounded in the real scorecards:** for
+  every match you play, the Most Runs/Most Wickets tally is read directly off
+  the actual generated batting/bowling cards (never a separate fabrication),
+  so the leaderboard and the highlight line under each score can never
+  disagree with the full scorecard. Background AI-vs-AI matches (which never
+  show a scorecard to anyone) still feed the leaderboard with a lighter
+  standout-performance model.
+- **Cricket-accurate chases:** the team batting second is generated *relative
+  to* the target, not independently — a successful chase always lands just a
+  realistic handful of runs past the target (the innings ends the instant the
+  target is passed, so it can never look like a side "kept batting" long
+  after winning), and a failed chase always finishes genuinely short. Every
+  batter's and bowler's individual figures are reconciled to sum exactly to
+  the innings' real ball count and run total — no independently-fabricated
+  numbers that don't add up.
 - **Real ODI scorecards:** 50-over innings, no bowler exceeds the real
   10-over limit, batter/bowler figures always sum exactly to the innings
-  total, and realistic ODI strike rates and totals (~110-430 runs).
-- **Opponents are real squads**, not fictional flavor text — every team in
-  your group and the parallel group is a genuine team-edition from the
-  dataset (excluding any you drafted from), using its actual players for
-  every scorecard.
-- Stress-tested across hundreds of simulated tournaments and difficulty/style
-  combinations: group standings always resolve to a unique ranking, the top-2
-  crossover into the semi-final is always structurally correct, batter/bowler
-  scorecards always sum consistently, and a loss in any single group match
-  never prematurely ends the tournament.
+  total and to the real overs faced, and realistic ODI strike rates and
+  totals (~110-430 runs).
+- **Opponents are real squads**, not fictional flavor text — every one of
+  the 32 teams is a genuine team-edition from the dataset (excluding any you
+  drafted from), using its actual players for every scorecard.
+- **Your draft survives a refresh.** Progress (your XI, the current market,
+  switches left, tournament results) is checkpointed to `localStorage`, so
+  an accidental reload mid-draft doesn't throw away ten minutes of picking.
+  The 280 KB dataset is never stored — it's always refetched from `/api/data`.
+  Transient view state (a spinning "Simulating…", an open modal) is
+  deliberately reset on load rather than restored mid-animation.
+- **The server caches and compresses.** The dataset is immutable once
+  `build_db.py` has run, so it's serialized once at startup and served from
+  memory — 289 KB of JSON goes out as **33 KB gzipped**, and Vite's
+  content-hashed assets get `immutable` caching while `index.html` stays
+  uncached so a rebuild is picked up immediately.
+- **Everything above is enforced by tests, not vibes** (`npm test` +
+  `python -m unittest test_build_db`): group standings resolve to a unique
+  ranking, the Round of 16 crossover is structurally correct, the bracket
+  propagates real winners round to round, ball totals reconcile to the
+  innings total, chase margins stay realistic, the leaderboard stays sorted,
+  scorecards always sum, a 99 rating stays rare, all-rounder tags stay
+  balanced, and a loss in any single group match never prematurely ends the
+  tournament. The suites are mutation-checked — deliberately reintroducing
+  each historical bug makes the corresponding test fail.
 
 Inspired by [7a0 (Sete a Zero)](https://7a0.org/en). Fan-made; not affiliated
 with the ICC, any cricket board, or any player. Ratings are subjective and for

@@ -7,7 +7,7 @@ import SetupScreen from "./components/SetupScreen";
 import DraftScreen from "./components/DraftScreen";
 import StyleScreen from "./components/StyleScreen";
 import ResultScreen from "./components/ResultScreen";
-import KnockoutScreen from "./components/KnockoutScreen";
+import BracketScreen from "./components/BracketScreen";
 import Footer from "./components/Footer";
 
 export default function App() {
@@ -19,9 +19,12 @@ export default function App() {
   }, [loadData]);
 
   return (
-    <div className={clsx("flex flex-col", isFullBleed ? "h-screen overflow-hidden" : "min-h-screen")}>
+    // The viewport-locked layout is a desktop affordance: on phones there
+    // isn't room for two side-by-side scroll panes, so the page scrolls
+    // normally instead of squeezing everything into one screen.
+    <div className={clsx("flex flex-col", isFullBleed ? "min-h-screen md:h-screen md:overflow-hidden" : "min-h-screen")}>
       <TopBar />
-      <main className={clsx("flex-1 min-h-0", isFullBleed && "flex flex-col overflow-hidden")}>
+      <main className={clsx("flex-1 min-h-0", isFullBleed && "flex flex-col md:overflow-hidden")}>
         {dataError && (
           <div className="max-w-2xl mx-auto mt-10 p-6 bg-red-50 border border-red-300 text-red-700 rounded-xl text-center">
             Could not load data — is <code>server.py</code> running? ({dataError})
@@ -45,7 +48,7 @@ export default function App() {
               {screen === "setup" && <SetupScreen />}
               {screen === "draft" && <DraftScreen />}
               {screen === "style" && <StyleScreen />}
-              {screen === "knockout" && <KnockoutScreen />}
+              {screen === "knockout" && <BracketScreen />}
               {screen === "result" && <ResultScreen />}
             </motion.div>
           </AnimatePresence>

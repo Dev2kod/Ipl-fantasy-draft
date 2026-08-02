@@ -57,6 +57,7 @@ export type StageReached =
 export interface GroupStanding {
   name: string;
   colour: string;
+  code: string;
   isYou: boolean;
   played: number;
   won: number;
@@ -69,7 +70,28 @@ export interface GroupStanding {
 export interface LeaderboardRow {
   name: string;
   team: string;
+  teamCode: string;
   value: number;
+}
+
+/** A team reference for bracket display -- enough to render a badge/flag. */
+export interface BracketTeamRef {
+  name: string;
+  colour: string;
+  code: string;
+  isYou: boolean;
+}
+
+/** One knockout match anywhere in the 32-team bracket -- yours or not. Every
+ *  match in every round is simulated and recorded, so the whole bracket can
+ *  be visualized (Round of 16 through Final), not just your own path. */
+export interface BracketMatch {
+  round: string;
+  teamA: BracketTeamRef;
+  teamB: BracketTeamRef;
+  scoreA: number;
+  scoreB: number;
+  winnerIsA: boolean;
 }
 
 export interface SimMeta {
@@ -80,6 +102,7 @@ export interface SimMeta {
   won: number;
   played: number;
   groupStandings: GroupStanding[];
+  allGroupStandings: GroupStanding[][];
   groupRank: number;
   qualified: boolean;
   reachedFinal: boolean;
@@ -87,6 +110,7 @@ export interface SimMeta {
   stageReached: StageReached;
   topRuns: LeaderboardRow[];
   topWickets: LeaderboardRow[];
+  bracket: BracketMatch[][]; // bracket[0] = Round of 16 (8 matches) .. bracket[3] = Final (1 match); empty if not qualified
 }
 
 const ODI_OVERS = 50;
@@ -110,26 +134,6 @@ function weightedPick<T>(items: T[], weightFn: (x: T) => number): T {
     if (r <= 0) return items[i];
   }
   return items[items.length - 1];
-}
-
-function fabricateHighlight(players: SignedPlayer[], ourRuns: number, win: boolean): string | null {
-  const batPool = players.filter((p) => p.role !== "BOWL");
-  const bowlPool = players.filter((p) => p.role === "BOWL" || p.role === "ALL");
-  const wantBat = bowlPool.length === 0 || (batPool.length > 0 && Math.random() < 0.55);
-  if (wantBat && batPool.length) {
-    const p = weightedPick(batPool, (x) => x.bat);
-    const runs = Math.max(15, Math.round(ourRuns * (0.2 + Math.random() * 0.22)));
-    // ODI strike rates: roughly 75-115
-    const balls = Math.max(10, Math.round(runs / (0.75 + Math.random() * 0.4)));
-    return `${p.name} top-scored with ${runs} off ${balls} balls.`;
-  }
-  if (bowlPool.length) {
-    const p = weightedPick(bowlPool, (x) => x.bowl);
-    const wkts = Math.min(5, 1 + rint(3) + (win ? 1 : 0));
-    const runsConceded = 32 + rint(28); // a full 10-over ODI spell
-    return `${p.name} picked up ${wkts}/${runsConceded}.`;
-  }
-  return null;
 }
 
 /** Real cricket over notation: whole overs + 0-5 balls (never 17.7, only 17.0-17.5). */
@@ -173,26 +177,46 @@ function distributeBalls(totalBalls: number, nBowlers: number): number[] {
   return alloc;
 }
 
-function makeBatters(names: string[], runs: number, wicketsDown: number): BatterLine[] {
+/** Split a total exactly across N shares, weighted, with every share at
+ *  least `min` -- used so individual batter/bowler figures always sum back
+ *  to the innings' real total instead of drifting from independent rounding. */
+function splitExactly(weights: number[], total: number, min: number): number[] {
+  const wSum = weights.reduce((a, b) => a + b, 0);
+  const parts = weights.map((w) => Math.max(min, Math.round((w / wSum) * total)));
+  let diff = total - parts.reduce((a, b) => a + b, 0);
+  let guard = 0;
+  while (diff !== 0 && guard < 10000) {
+    guard++;
+    const step = diff > 0 ? 1 : -1;
+    const idx = guard % parts.length;
+    if (parts[idx] + step >= min) { parts[idx] += step; diff -= step; }
+  }
+  return parts;
+}
+
+function makeBatters(names: string[], runs: number, wicketsDown: number, totalBalls: number): BatterLine[] {
   const battersShown = Math.min(names.length, wicketsDown + (wicketsDown >= 10 ? 1 : 2));
   const outCount = Math.min(wicketsDown, battersShown);
 
-  const shares: number[] = [];
+  const runShares: number[] = [];
   let remaining = runs;
   for (let i = 0; i < battersShown; i++) {
     const isLast = i === battersShown - 1;
     const share = isLast ? remaining : Math.max(0, Math.round(remaining * (0.15 + Math.random() * 0.35)));
-    shares.push(Math.max(0, share));
+    runShares.push(Math.max(0, share));
     remaining -= share;
   }
-  shares.sort((a, b) => b - a); // top order scores more, in batting-order position
+  runShares.sort((a, b) => b - a); // top order scores more, in batting-order position
 
-  return names.slice(0, battersShown).map((name, i) => {
-    const r = shares[i] ?? 0;
-    // ODI strike rates: roughly 65-105 depending on situation
-    const balls = Math.max(r > 0 ? Math.round(r / (0.65 + Math.random() * 0.4)) : 1 + rint(6), 1);
-    return { name, runs: r, balls, out: i < outCount };
-  });
+  // Every ball actually faced by this innings' batters must sum to exactly
+  // totalBalls (the same figure the bowling card's overs are built from) --
+  // weighted loosely by runs (a realistic strike-rate feel) but reconciled
+  // to the real total instead of each batter's balls being fabricated alone.
+  const ballShares = splitExactly(runShares.map((r) => r + 10 + Math.random() * 12), totalBalls, 1);
+
+  return names.slice(0, battersShown).map((name, i) => ({
+    name, runs: runShares[i] ?? 0, balls: ballShares[i] ?? 1, out: i < outCount,
+  }));
 }
 
 function makeBowlers(names: string[], wicketsTaken: number, totalBalls: number, runsConceded: number): BowlerLine[] {
@@ -225,9 +249,38 @@ function makeInnings(
   const wickets = Math.min(10, randomWickets(isChaseWinner));
   const totalBalls = inningsBallsFaced(wickets, isChaseWinner);
   const overs = ballsToOvers(totalBalls);
-  const batters = makeBatters(battingNames, runs, wickets);
+  const batters = makeBatters(battingNames, runs, wickets, totalBalls);
   const bowlers = makeBowlers(bowlingNames, wickets, totalBalls, runs);
   return { team: battingTeam, runs, wickets, overs, batters, bowlers };
+}
+
+/** The actual highest scorer in an innings -- always read off the real
+ *  batting card, never fabricated separately, so the highlight text and any
+ *  leaderboard tally can never disagree with the scorecard shown on screen. */
+function topBatterOf(innings: Innings): BatterLine | null {
+  if (!innings.batters.length) return null;
+  return innings.batters.reduce((best, b) => (b.runs > best.runs ? b : best), innings.batters[0]);
+}
+
+/** The actual best bowling figures in an innings -- most wickets, tie-broken
+ *  by fewest runs conceded -- read off the real bowling card. */
+function topBowlerOf(innings: Innings): BowlerLine | null {
+  if (!innings.bowlers.length) return null;
+  return innings.bowlers.reduce(
+    (best, b) => (b.wickets > best.wickets || (b.wickets === best.wickets && b.runsConceded < best.runsConceded) ? b : best),
+    innings.bowlers[0]
+  );
+}
+
+/** A one-line highlight built strictly from the real scorecard just
+ *  generated -- a strong bowling spell (3+ wickets) takes priority,
+ *  otherwise the top score, so the text on screen always matches the
+ *  full scorecard exactly. */
+function highlightFrom(topBat: BatterLine | null, topBowl: BowlerLine | null): string | null {
+  if (topBowl && topBowl.wickets >= 3) return `${topBowl.name} picked up ${topBowl.wickets}/${topBowl.runsConceded}.`;
+  if (topBat) return `${topBat.name} top-scored with ${topBat.runs} off ${topBat.balls} balls.`;
+  if (topBowl) return `${topBowl.name} picked up ${topBowl.wickets}/${topBowl.runsConceded}.`;
+  return null;
 }
 
 function battingOrderOf(players: Player[]): string[] {
@@ -257,7 +310,6 @@ interface TeamEntry {
   battingNames: string[];
   bowlingNames: string[];
   roster: RosterPlayer[]; // every team's full roster -- used for tournament-wide leaderboard stats
-  highlightPool?: SignedPlayer[]; // only set for "You" -- used to fabricate a highlight
 }
 
 function toRoster(players: Player[]): RosterPlayer[] {
@@ -268,7 +320,7 @@ function youEntry(players: SignedPlayer[], strength: number): TeamEntry {
   return {
     name: "You", colour: "#ff7a1a", code: "", isYou: true, strength,
     battingNames: battingOrderOf(players), bowlingNames: bowlingOrderOf(players),
-    roster: toRoster(players), highlightPool: players,
+    roster: toRoster(players),
   };
 }
 
@@ -298,7 +350,9 @@ function fabricatePerformance(roster: RosterPlayer[], runsScored: number) {
 }
 
 /** Tally one team's standout performance from a match into the running
- *  tournament-wide leaderboard maps. */
+ *  tournament-wide leaderboard maps. Used only for lite (AI-vs-AI) matches,
+ *  where no full scorecard is ever generated or shown, so a fabricated
+ *  standout performance can't disagree with anything on screen. */
 function tally(
   runsMap: Map<string, LeaderboardRow>,
   wktsMap: Map<string, LeaderboardRow>,
@@ -306,15 +360,44 @@ function tally(
   runsScored: number
 ) {
   const perf = fabricatePerformance(entry.roster, runsScored);
-  const rRow = runsMap.get(perf.batter.name) ?? { name: perf.batter.name, team: entry.name, value: 0 };
+  const rRow = runsMap.get(perf.batter.name) ?? { name: perf.batter.name, team: entry.name, teamCode: entry.code, value: 0 };
   rRow.value += perf.batter.runs;
   rRow.team = entry.name;
+  rRow.teamCode = entry.code;
   runsMap.set(perf.batter.name, rRow);
 
-  const wRow = wktsMap.get(perf.bowler.name) ?? { name: perf.bowler.name, team: entry.name, value: 0 };
+  const wRow = wktsMap.get(perf.bowler.name) ?? { name: perf.bowler.name, team: entry.name, teamCode: entry.code, value: 0 };
   wRow.value += perf.bowler.wickets;
   wRow.team = entry.name;
+  wRow.teamCode = entry.code;
   wktsMap.set(perf.bowler.name, wRow);
+}
+
+/** Tally a team's ACTUAL top scorer/wicket-taker from a real generated
+ *  innings pair into the leaderboard -- used for every detailed ("You")
+ *  match, so the leaderboard can never disagree with the real scorecard. */
+function tallyReal(
+  runsMap: Map<string, LeaderboardRow>,
+  wktsMap: Map<string, LeaderboardRow>,
+  entryName: string,
+  entryCode: string,
+  topBat: BatterLine | null,
+  topBowl: BowlerLine | null
+) {
+  if (topBat) {
+    const row = runsMap.get(topBat.name) ?? { name: topBat.name, team: entryName, teamCode: entryCode, value: 0 };
+    row.value += topBat.runs;
+    row.team = entryName;
+    row.teamCode = entryCode;
+    runsMap.set(topBat.name, row);
+  }
+  if (topBowl) {
+    const row = wktsMap.get(topBowl.name) ?? { name: topBowl.name, team: entryName, teamCode: entryCode, value: 0 };
+    row.value += topBowl.wickets;
+    row.team = entryName;
+    row.teamCode = entryCode;
+    wktsMap.set(topBowl.name, row);
+  }
 }
 
 /** Weight real historical squads toward the difficulty's target strength band
@@ -366,15 +449,62 @@ function simulateLite(a: TeamEntry, b: TeamEntry): { aWin: boolean; runsA: numbe
   return { aWin, runsA, runsB };
 }
 
-/** A full match involving "You" -- toss, innings, scorecards, highlight. */
-function simulateDetailed(you: TeamEntry, opp: TeamEntry, style: Style, stage: string): MatchResult {
-  const { aWin: win, prob, runsA: ourRuns, runsB: theirRuns } = playOutScore(you.strength, opp.strength, style.variance);
+/**
+ * A toss-aware, cricket-accurate head-to-head: the team batting FIRST posts
+ * an independent total; the team batting SECOND is then generated relative
+ * to that target, not independently -- because in real limit-overs cricket
+ * the chase ends the INSTANT the target is passed. A winning chase is always
+ * just a small, realistic margin above the target (never a separately
+ * fabricated score that happens to be higher), and a losing chase always
+ * falls genuinely short.
+ */
+function playDetailedMatch(youStrength: number, oppStrength: number, variance: number) {
+  const gap = youStrength - oppStrength;
+  let prob = 1 / (1 + Math.exp(-gap / 7));
+  prob = Math.max(0.05, Math.min(0.95, prob));
+  const win = Math.random() < prob;
 
   const tossYouWon = Math.random() < 0.5;
   const decision: "bat" | "bowl" = Math.random() < 0.5 ? "bat" : "bowl";
-  const highlight = fabricateHighlight(you.highlightPool ?? [], ourRuns, win);
-
   const weBatFirst = tossYouWon ? decision === "bat" : decision === "bowl";
+
+  const batFirstStrength = weBatFirst ? youStrength : oppStrength;
+  const secondBatsWins = weBatFirst ? !win : win; // does whoever bats second end up winning?
+
+  const swing = 45 * variance;
+  const battingFirstRuns = clampRuns(
+    260 + Math.round((batFirstStrength - 70) * 2.3) + Math.round((Math.random() - 0.5) * 2 * swing)
+  );
+
+  let battingSecondRuns: number;
+  if (secondBatsWins) {
+    // The innings ends the moment the target is passed -- a small, realistic
+    // margin over the target, never an independently-rolled blowout score.
+    battingSecondRuns = Math.min(430, battingFirstRuns + 1 + rint(20));
+  } else {
+    // A failed chase falls genuinely short -- bowled out or ran out of overs.
+    battingSecondRuns = Math.max(100, battingFirstRuns - (5 + rint(90)));
+    if (battingSecondRuns >= battingFirstRuns) battingSecondRuns = battingFirstRuns - 1;
+  }
+
+  const ourRuns = weBatFirst ? battingFirstRuns : battingSecondRuns;
+  const theirRuns = weBatFirst ? battingSecondRuns : battingFirstRuns;
+  return { win, prob, tossYouWon, decision, weBatFirst, ourRuns, theirRuns };
+}
+
+/** A full match involving "You" -- toss, innings, scorecards, highlight. The
+ *  highlight and leaderboard tally are always read straight off the real
+ *  generated scorecard (never a separate fabrication), so what's shown under
+ *  the score and what ends up in the tournament leaderboard can never
+ *  disagree with the actual batting/bowling figures. */
+function simulateDetailed(
+  you: TeamEntry, opp: TeamEntry, style: Style, stage: string,
+  runsMap: Map<string, LeaderboardRow>, wktsMap: Map<string, LeaderboardRow>
+): MatchResult {
+  const {
+    win, prob, tossYouWon, decision, weBatFirst, ourRuns, theirRuns,
+  } = playDetailedMatch(you.strength, opp.strength, style.variance);
+
   const battingFirstRuns = weBatFirst ? ourRuns : theirRuns;
   const chasingRuns = weBatFirst ? theirRuns : ourRuns;
   const chaseWon = chasingRuns > battingFirstRuns;
@@ -387,6 +517,18 @@ function simulateDetailed(you: TeamEntry, opp: TeamEntry, style: Style, stage: s
     innings1 = makeInnings(opp.name, theirRuns, false, opp.battingNames, you.bowlingNames);
     innings2 = makeInnings("You", ourRuns, chaseWon, you.battingNames, opp.bowlingNames);
   }
+
+  // innings.bowlers always belongs to whichever side did NOT bat that innings.
+  const yourInnings = innings1.team === "You" ? innings1 : innings2;
+  const oppInnings = innings1.team === "You" ? innings2 : innings1;
+  const yourTopBat = topBatterOf(yourInnings);
+  const yourTopBowl = topBowlerOf(oppInnings); // bowled while the opponent batted -- these are your bowlers
+  const oppTopBat = topBatterOf(oppInnings);
+  const oppTopBowl = topBowlerOf(yourInnings); // bowled while you batted -- these are the opponent's bowlers
+
+  const highlight = highlightFrom(yourTopBat, yourTopBowl);
+  tallyReal(runsMap, wktsMap, "You", you.code, yourTopBat, yourTopBowl);
+  tallyReal(runsMap, wktsMap, opp.name, opp.code, oppTopBat, oppTopBowl);
 
   let line: string;
   if (win) {
@@ -418,7 +560,7 @@ interface StandingRow extends GroupStanding {
 }
 
 function initStanding(entry: TeamEntry): StandingRow {
-  return { entry, name: entry.name, colour: entry.colour, isYou: entry.isYou, played: 0, won: 0, lost: 0, runsFor: 0, runsAgainst: 0, points: 0 };
+  return { entry, name: entry.name, colour: entry.colour, code: entry.code, isYou: entry.isYou, played: 0, won: 0, lost: 0, runsFor: 0, runsAgainst: 0, points: 0 };
 }
 
 function applyResult(row: StandingRow, won: boolean, runsFor: number, runsAgainst: number) {
@@ -459,12 +601,10 @@ function playGroup(
         const you = a.isYou ? a : b;
         const opp = a.isYou ? b : a;
         const stage = stageNames[yourMatchIdx++];
-        const m = simulateDetailed(you, opp, style, stage);
+        const m = simulateDetailed(you, opp, style, stage, runsMap, wktsMap);
         yourMatches.push(m);
         applyResult(rows.get(you)!, m.win, m.ourRuns, m.theirRuns);
         applyResult(rows.get(opp)!, !m.win, m.theirRuns, m.ourRuns);
-        tally(runsMap, wktsMap, you, m.ourRuns);
-        tally(runsMap, wktsMap, opp, m.theirRuns);
       } else {
         const { aWin, runsA, runsB } = simulateLite(a, b);
         applyResult(rows.get(a)!, aWin, runsA, runsB);
@@ -486,13 +626,19 @@ function roundLabelFor(nTeams: number): string {
   return `Round of ${nTeams}`;
 }
 
+function bracketTeamRef(e: TeamEntry): BracketTeamRef {
+  return { name: e.name, colour: e.colour, code: e.code, isYou: e.isYou };
+}
+
 /**
  * Single-elimination bracket over any seed list -- pairs adjacent teams each
  * round, halving until one champion remains. Any match involving "You" gets
  * a full scorecard appended to `yourMatches`; every other match (including
  * the rest of the bracket after you're eliminated, or before you even reach
  * it) still simulates and feeds the leaderboard, so the whole tournament
- * resolves consistently regardless of how far you got.
+ * resolves consistently regardless of how far you got. Every match at every
+ * round -- not just yours -- is also recorded into `bracketRounds` so the
+ * whole Round of 16 -> Final tree can be visualized.
  */
 function runKnockoutBracket(
   seeds: TeamEntry[],
@@ -500,31 +646,43 @@ function runKnockoutBracket(
   yourMatches: MatchResult[],
   runsMap: Map<string, LeaderboardRow>,
   wktsMap: Map<string, LeaderboardRow>
-): TeamEntry {
+): { champion: TeamEntry; bracketRounds: BracketMatch[][] } {
   let round = seeds;
+  const bracketRounds: BracketMatch[][] = [];
   while (round.length > 1) {
     const label = roundLabelFor(round.length);
     const winners: TeamEntry[] = [];
+    const roundMatches: BracketMatch[] = [];
     for (let i = 0; i < round.length; i += 2) {
       const a = round[i], b = round[i + 1];
       if (a.isYou || b.isYou) {
         const you = a.isYou ? a : b;
         const opp = a.isYou ? b : a;
-        const m = simulateDetailed(you, opp, style, label);
+        const m = simulateDetailed(you, opp, style, label, runsMap, wktsMap);
         yourMatches.push(m);
-        tally(runsMap, wktsMap, you, m.ourRuns);
-        tally(runsMap, wktsMap, opp, m.theirRuns);
         winners.push(m.win ? you : opp);
+        roundMatches.push({
+          round: label,
+          teamA: bracketTeamRef(a), teamB: bracketTeamRef(b),
+          scoreA: a.isYou ? m.ourRuns : m.theirRuns,
+          scoreB: b.isYou ? m.ourRuns : m.theirRuns,
+          winnerIsA: a.isYou ? m.win : !m.win,
+        });
       } else {
         const { aWin, runsA, runsB } = simulateLite(a, b);
         tally(runsMap, wktsMap, a, runsA);
         tally(runsMap, wktsMap, b, runsB);
         winners.push(aWin ? a : b);
+        roundMatches.push({
+          round: label, teamA: bracketTeamRef(a), teamB: bracketTeamRef(b),
+          scoreA: runsA, scoreB: runsB, winnerIsA: aWin,
+        });
       }
     }
+    bracketRounds.push(roundMatches);
     round = winners;
   }
-  return round[0];
+  return { champion: round[0], bracketRounds };
 }
 
 export function simulateCupRun(
@@ -569,12 +727,16 @@ export function simulateCupRun(
   const yourRow = yourStandings.find((row) => row.isYou)!;
   const groupRank = yourStandings.indexOf(yourRow) + 1;
   const groupStandings: GroupStanding[] = yourStandings.map(({ entry: _e, ...rest }) => rest);
+  const allGroupStandings: GroupStanding[][] = standingsPerGroup.map((st) =>
+    st.map(({ entry: _e, ...rest }) => rest)
+  );
 
   let won = yourRow.won;
   const qualified = groupRank <= 2;
   let reachedFinal = false;
   let champion = false;
   let stageReached: StageReached = "Group Stage";
+  let bracket: BracketMatch[][] = [];
 
   if (qualified) {
     // Standard crossover Round of 16 draw: group winners face a runner-up
@@ -586,8 +748,9 @@ export function simulateCupRun(
     for (const [x, y] of crossPairs) seeds.push(winners[x], runnersUp[y]);
     for (const [x, y] of crossPairs) seeds.push(winners[y], runnersUp[x]);
 
-    const champEntry = runKnockoutBracket(seeds, style, results, runsMap, wktsMap);
+    const { champion: champEntry, bracketRounds } = runKnockoutBracket(seeds, style, results, runsMap, wktsMap);
     champion = champEntry === you;
+    bracket = bracketRounds;
 
     const knockoutResults = results.slice(TEAM_PER_GROUP - 1);
     won += knockoutResults.filter((m) => m.win).length;
@@ -605,8 +768,8 @@ export function simulateCupRun(
     results,
     meta: {
       teamStrength, r, effBat, effBowl, won, played: results.length,
-      groupStandings, groupRank, qualified, reachedFinal, champion, stageReached,
-      topRuns, topWickets,
+      groupStandings, allGroupStandings, groupRank, qualified, reachedFinal, champion, stageReached,
+      topRuns, topWickets, bracket,
     },
   };
 }

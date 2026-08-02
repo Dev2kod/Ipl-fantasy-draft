@@ -18,7 +18,7 @@ function XIPanel() {
   const done = filledCount(slots) === 11;
 
   return (
-    <aside className="bg-panel border border-line rounded-2xl p-3 shadow-xl flex flex-col min-h-0 h-full">
+    <aside className="bg-panel border border-line rounded-2xl p-3 shadow-xl flex flex-col md:min-h-0 md:h-full">
       <div className="flex justify-between items-center mb-2 shrink-0">
         <h2 className="text-base font-bold m-0">Your XI</h2>
         <div className="flex gap-1.5 flex-wrap justify-end">
@@ -27,7 +27,7 @@ function XIPanel() {
         </div>
       </div>
 
-      <ol className="list-none m-0 p-0 flex flex-col gap-1 mb-2.5 flex-1 min-h-0 overflow-y-auto pr-1">
+      <ol className="list-none m-0 p-0 flex flex-col gap-1 mb-2.5 md:flex-1 md:min-h-0 overflow-y-auto pr-1">
         {slots.map((slot, i) => {
           const targets = slot.player ? validMoveTargets(i, slots) : [];
           return (
@@ -50,7 +50,9 @@ function XIPanel() {
                   <span className="flex-1 min-w-0 truncate flex items-center gap-1.5">
                     {slot.player.name}
                     <AwardBadge award={slot.player.award} />
-                    <span className="hidden lg:inline text-[10.5px] text-slate-400">{slot.player._src}</span>
+                    <span className="hidden lg:inline text-[10.5px] text-slate-400">
+                      {FLAGS[slot.player._srcCode] ?? "🏏"} {slot.player._src}
+                    </span>
                   </span>
                 ) : (
                   <span className="flex-1 text-slate-400">needed</span>
@@ -150,7 +152,7 @@ function MarketPanel() {
   };
 
   return (
-    <div className="bg-panel border border-line rounded-2xl p-3 shadow-xl flex flex-col min-h-0 h-full">
+    <div className="bg-panel border border-line rounded-2xl p-3 shadow-xl flex flex-col md:min-h-0 md:h-full">
       <AnimatePresence mode="wait">
         {currentSquad ? (
           <motion.div
@@ -225,7 +227,7 @@ function MarketPanel() {
         {done ? "XI complete!" : needHint ? <>Still needed: <b className="text-accent">{needHint}</b></> : ""}
       </p>
 
-      <div className="flex flex-col gap-1.5 flex-1 min-h-0 overflow-y-auto pr-1.5">
+      <div className="flex flex-col gap-1.5 md:flex-1 md:min-h-0 overflow-y-auto pr-1.5 max-h-[65vh] md:max-h-none">
         <AnimatePresence mode="popLayout">
           {players.map((p, i) => {
             const opts = optionsFor(p);
@@ -293,8 +295,8 @@ function MarketPanel() {
 
 export default function DraftScreen() {
   return (
-    <section className="flex-1 min-h-0 max-w-6xl w-full mx-auto px-5 py-4 flex flex-col">
-      <div className="grid gap-4 flex-1 min-h-0" style={{ gridTemplateColumns: "320px 1fr" }}>
+    <section className="md:flex-1 md:min-h-0 max-w-6xl w-full mx-auto px-4 sm:px-5 py-4 flex flex-col">
+      <div className="grid gap-4 md:flex-1 md:min-h-0 grid-cols-1 md:[grid-template-columns:320px_1fr]">
         <XIPanel />
         <MarketPanel />
       </div>

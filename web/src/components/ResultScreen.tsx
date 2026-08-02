@@ -1,16 +1,50 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import clsx from "clsx";
-import { FileText, Trophy, Target } from "lucide-react";
+import { FileText, Trophy, Target, ChevronDown } from "lucide-react";
 import { useGameStore } from "../store/useGameStore";
 import type { SignedPlayer } from "../engine/types";
+import type { GroupStanding } from "../engine/simulate";
+import { FLAGS } from "../engine/constants";
 import { Button, AwardBadge } from "./ui";
 import ScorecardModal from "./ScorecardModal";
+
+function GroupTable({ standings }: { standings: GroupStanding[] }) {
+  return (
+    <table className="w-full text-[13px] border-collapse">
+      <thead>
+        <tr className="text-slate-400 text-left">
+          <th className="py-1.5 px-2 font-bold">#</th>
+          <th className="py-1.5 px-2 font-bold">Team</th>
+          <th className="py-1.5 px-2 font-bold text-center">P</th>
+          <th className="py-1.5 px-2 font-bold text-center">W</th>
+          <th className="py-1.5 px-2 font-bold text-center">L</th>
+          <th className="py-1.5 px-2 font-bold text-center">Runs +/-</th>
+          <th className="py-1.5 px-2 font-bold text-center">Pts</th>
+        </tr>
+      </thead>
+      <tbody>
+        {standings.map((row, i) => (
+          <tr key={i} className={clsx("border-t border-line", row.isYou && "bg-accent/10 font-bold")}>
+            <td className="py-1.5 px-2">{i + 1}</td>
+            <td className="py-1.5 px-2">{row.isYou ? "You" : `${FLAGS[row.code] ?? "🏏"} ${row.name}`}</td>
+            <td className="py-1.5 px-2 text-center">{row.played}</td>
+            <td className="py-1.5 px-2 text-center">{row.won}</td>
+            <td className="py-1.5 px-2 text-center">{row.lost}</td>
+            <td className="py-1.5 px-2 text-center">{row.runsFor - row.runsAgainst >= 0 ? "+" : ""}{row.runsFor - row.runsAgainst}</td>
+            <td className="py-1.5 px-2 text-center">{row.points}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
 
 export default function ResultScreen() {
   const { simResults, simMeta, slots, mode, difficulty, style, restart } = useGameStore();
   const [copied, setCopied] = useState(false);
   const [openIdx, setOpenIdx] = useState<number | null>(null);
+  const [otherGroupsOpen, setOtherGroupsOpen] = useState(false);
 
   if (!simMeta) return null;
   const won = simMeta.won;
@@ -39,7 +73,7 @@ export default function ResultScreen() {
   const copyResult = () => {
     const lines = [
       `7-0 World Cup — ${verdict} (${won}/${played})`,
-      ...players.map((p) => `${p.role.padEnd(4)} ${p.name} — ${p._src} (${p.overall})`),
+      ...players.map((p) => `${p.role.padEnd(4)} ${p.name} — ${FLAGS[p._srcCode] ?? "🏏"} ${p._src} (${p.overall})`),
     ];
     navigator.clipboard.writeText(lines.join("\n")).then(() => {
       setCopied(true);
@@ -67,7 +101,7 @@ export default function ResultScreen() {
 
         <div className="flex justify-center gap-6 flex-wrap mb-3">
           <Stat label="Matches won" value={`${won}/${played}`} />
-          <Stat label="Group finish" value={`${ordinal(simMeta.groupRank)} / 6`} />
+          <Stat label="Group finish" value={`${ordinal(simMeta.groupRank)} / 4`} />
           <Stat label="Batting" value={Math.round(simMeta.r.batting)} />
           <Stat label="Bowling" value={Math.round(simMeta.r.bowling)} />
           <Stat label="Overall" value={Math.round(simMeta.r.overall)} />
@@ -78,7 +112,7 @@ export default function ResultScreen() {
             <div key={i} className="bg-panel border border-line rounded-lg px-2.5 py-2 text-[13px] flex justify-between gap-1.5">
               <span className="truncate">
                 {p.name}
-                <small className="block text-slate-400 text-[10.5px]">{p.role} · {p._src}</small>
+                <small className="block text-slate-400 text-[10.5px]">{p.role} · {FLAGS[p._srcCode] ?? "🏏"} {p._src}</small>
                 {p.award && <span className="block mt-1"><AwardBadge award={p.award} /></span>}
               </span>
               <span className="font-extrabold text-accent">{p.overall}</span>
@@ -93,42 +127,66 @@ export default function ResultScreen() {
       <div className="mt-6">
         <h3 className="text-center font-bold mb-3">Your Group</h3>
         <div className="overflow-x-auto">
-          <table className="w-full text-[13px] border-collapse">
-            <thead>
-              <tr className="text-slate-400 text-left">
-                <th className="py-1.5 px-2 font-bold">#</th>
-                <th className="py-1.5 px-2 font-bold">Team</th>
-                <th className="py-1.5 px-2 font-bold text-center">P</th>
-                <th className="py-1.5 px-2 font-bold text-center">W</th>
-                <th className="py-1.5 px-2 font-bold text-center">L</th>
-                <th className="py-1.5 px-2 font-bold text-center">Runs +/-</th>
-                <th className="py-1.5 px-2 font-bold text-center">Pts</th>
-              </tr>
-            </thead>
-            <tbody>
-              {simMeta.groupStandings.map((row, i) => (
-                <tr
-                  key={i}
-                  className={clsx(
-                    "border-t border-line",
-                    row.isYou && "bg-accent/10 font-bold",
-                    i < 2 && "text-ink"
-                  )}
-                >
-                  <td className="py-1.5 px-2">{i + 1}</td>
-                  <td className="py-1.5 px-2">{row.isYou ? "You" : row.name}</td>
-                  <td className="py-1.5 px-2 text-center">{row.played}</td>
-                  <td className="py-1.5 px-2 text-center">{row.won}</td>
-                  <td className="py-1.5 px-2 text-center">{row.lost}</td>
-                  <td className="py-1.5 px-2 text-center">{row.runsFor - row.runsAgainst >= 0 ? "+" : ""}{row.runsFor - row.runsAgainst}</td>
-                  <td className="py-1.5 px-2 text-center">{row.points}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <GroupTable standings={simMeta.groupStandings} />
         </div>
-        <p className="text-[11.5px] text-slate-400 text-center mt-1.5">Top 2 advance to the semi-finals.</p>
+        <p className="text-[11.5px] text-slate-400 text-center mt-1.5">Top 2 advance to the Round of 16.</p>
       </div>
+
+      <div className="mt-4">
+        <button
+          onClick={() => setOtherGroupsOpen((o) => !o)}
+          className="w-full flex items-center justify-center gap-1.5 text-[13px] font-bold text-accent2 bg-transparent border-none cursor-pointer py-1.5"
+        >
+          <motion.span animate={{ rotate: otherGroupsOpen ? 180 : 0 }}><ChevronDown size={15} /></motion.span>
+          {otherGroupsOpen ? "Hide" : "Show"} the other 7 groups
+        </button>
+        {otherGroupsOpen && (
+          <div className="grid md:grid-cols-2 gap-4 mt-2">
+            {simMeta.allGroupStandings.slice(1).map((standings, gi) => (
+              <div key={gi} className="overflow-x-auto">
+                <h4 className="text-center text-[12px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">Group {gi + 2}</h4>
+                <GroupTable standings={standings} />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-6 grid md:grid-cols-2 gap-5">
+        <div>
+          <h3 className="flex items-center justify-center gap-1.5 font-bold mb-3">
+            <Target size={16} className="text-accent2" /> Most Runs
+          </h3>
+          <ol className="list-none m-0 p-0 flex flex-col gap-1.5">
+            {simMeta.topRuns.map((row, i) => (
+              <li key={row.name} className="flex items-center gap-2.5 bg-panel border border-line rounded-lg px-3 py-1.5 text-[13px]">
+                <span className="w-5 text-slate-400 font-bold">{i + 1}</span>
+                <span className="flex-1 min-w-0 truncate">
+                  {row.name} <span className="text-slate-400 text-[11.5px]">{FLAGS[row.teamCode] ?? "🏏"} {row.team}</span>
+                </span>
+                <span className="font-black text-accent">{row.value}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+        <div>
+          <h3 className="flex items-center justify-center gap-1.5 font-bold mb-3">
+            <Trophy size={16} className="text-accent2" /> Most Wickets
+          </h3>
+          <ol className="list-none m-0 p-0 flex flex-col gap-1.5">
+            {simMeta.topWickets.map((row, i) => (
+              <li key={row.name} className="flex items-center gap-2.5 bg-panel border border-line rounded-lg px-3 py-1.5 text-[13px]">
+                <span className="w-5 text-slate-400 font-bold">{i + 1}</span>
+                <span className="flex-1 min-w-0 truncate">
+                  {row.name} <span className="text-slate-400 text-[11.5px]">{FLAGS[row.teamCode] ?? "🏏"} {row.team}</span>
+                </span>
+                <span className="font-black text-accent">{row.value}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </div>
+      <p className="text-[11.5px] text-slate-400 text-center mt-2">Tournament-wide across all 32 teams and every match played, not just yours.</p>
 
       <div className="mt-6">
         <h3 className="text-center font-bold mb-3">Full Cup Run Scorecard</h3>
@@ -141,7 +199,7 @@ export default function ResultScreen() {
             >
               <span className="text-[13px] font-extrabold text-slate-400 uppercase tracking-wide w-36">{m.stage}</span>
               <span className="flex-1 text-sm">
-                You <b>{m.ourRuns}</b> vs <b>{m.theirRuns}</b> {m.oppName} · {m.line}
+                You <b>{m.ourRuns}</b> vs <b>{m.theirRuns}</b> {FLAGS[m.oppCode] ?? "🏏"} {m.oppName} · {m.line}
               </span>
               <span className={clsx("text-[12px] font-black px-3 py-0.5 rounded-full", m.win ? "bg-win/20 text-win" : "bg-loss/20 text-loss")}>
                 {m.win ? "WON" : "LOST"}

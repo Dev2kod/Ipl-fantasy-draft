@@ -1,0 +1,11 @@
+# generated
+worldcup.db
+web/dist/
+web/node_modules/
+
+# python
+__pycache__/
+*.pyc
+
+# runtime
+server.log

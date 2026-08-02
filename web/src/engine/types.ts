@@ -9,7 +9,6 @@ export type Position = "Opener" | "Middle-order" | "Wicketkeeper" | "Bowler";
 export interface Player {
   name: string;
   role: Role;
-  sub_role: string;
   bat: number;
   bowl: number;
   overall: number;
@@ -55,6 +54,7 @@ export interface GameData {
 export interface SignedPlayer extends Player {
   _src: string; // e.g. "India 1983"
   _srcSquadId: number;
+  _srcCode: string; // e.g. "IND" -- for showing a flag next to _src
 }
 
 export interface Slot {

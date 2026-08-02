@@ -332,12 +332,13 @@ def build():
         CREATE TABLE players (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             squad_id INTEGER NOT NULL,
-            name TEXT, role TEXT, sub_role TEXT,
+            name TEXT, role TEXT, tier TEXT,
             bat INTEGER, bowl INTEGER, overall INTEGER,
             captain INTEGER DEFAULT 0,
             award TEXT, positions TEXT,
             FOREIGN KEY(squad_id) REFERENCES squads(id)
         );
+        CREATE INDEX idx_players_squad ON players(squad_id);
         """
     )
 
@@ -403,7 +404,7 @@ def build():
                 )
                 positions = assign_positions(nm, year, role, bat, bowl)
                 c.execute(
-                    "INSERT INTO players (squad_id,name,role,sub_role,bat,bowl,overall,captain,award,positions) "
+                    "INSERT INTO players (squad_id,name,role,tier,bat,bowl,overall,captain,award,positions) "
                     "VALUES (?,?,?,?,?,?,?,?,?,?)",
                     (squad_id, nm, role, p.get("tier", "role").title(), bat, bowl, overall,
                      1 if p.get("captain") else 0, award, ",".join(positions)),

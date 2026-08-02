@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 import type {
   GameData, Squad, Slot, SignedPlayer, Mode, Difficulty, Style, Position,
 } from "../engine/types";
@@ -9,7 +10,7 @@ import {
   drawRandomSquad, switchCandidates, filledCount,
   isDeadMarketPositions, eligiblePositionFor, validMoveTargets,
 } from "../engine/draft";
-import { simulateCupRun, GROUP_MATCHES, type MatchResult, type SimMeta } from "../engine/simulate";
+import { simulateCupRun, type MatchResult, type SimMeta } from "../engine/simulate";
 import { fetchGameData } from "../engine/data";
 
 export type Screen = "setup" | "draft" | "style" | "knockout" | "result";
@@ -46,6 +47,7 @@ interface GameState {
   // knockout match-day state
   knockoutIdx: number; // index into the knockout slice of simResults (simResults[GROUP_MATCHES + knockoutIdx])
   knockoutPhase: KnockoutPhase;
+  knockoutModalOpen: boolean; // the pre-match/simulating/result popup, shown over the bracket screen
 
   // actions
   loadData: () => Promise<void>;
@@ -60,6 +62,7 @@ interface GameState {
   goToStyle: () => void;
   runSimulation: () => void;
   goToKnockout: () => void;
+  openKnockoutModal: () => void;
   playKnockoutMatch: () => void;
   continueKnockout: () => void;
   goToResult: () => void;
@@ -73,7 +76,23 @@ function buildPositionSlots(): Slot[] {
   return POSITION_FORMATION.map((def) => ({ role: def.role, position: def.position, player: null }));
 }
 
-export const useGameStore = create<GameState>((set, get) => ({
+const STORAGE_KEY = "seven-nil-wc";
+/** Bump when the persisted shape changes so stale saves are discarded, not crashed on. */
+const STORAGE_VERSION = 1;
+
+/** JSON has no Set, so tag them on the way out and rebuild on the way in. */
+const SET_TAG = "__set__";
+function replacer(_key: string, value: unknown) {
+  return value instanceof Set ? { [SET_TAG]: [...value] } : value;
+}
+function reviver(_key: string, value: unknown) {
+  if (value && typeof value === "object" && SET_TAG in (value as Record<string, unknown>)) {
+    return new Set((value as Record<string, unknown[]>)[SET_TAG]);
+  }
+  return value;
+}
+
+export const useGameStore = create<GameState>()(persist((set, get) => ({
   data: null,
   dataError: null,
   screen: "setup",
@@ -97,6 +116,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   knockoutIdx: 0,
   knockoutPhase: "preview",
+  knockoutModalOpen: false,
 
   loadData: async () => {
     try {
@@ -159,7 +179,12 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (!player) return;
     const slotIdx = slots.findIndex((s) => !s.player && s.position === slotKey);
     if (slotIdx === -1) return;
-    const signed: SignedPlayer = { ...player, _src: `${currentSquad.country_name} ${currentSquad.edition}`, _srcSquadId: currentSquad.id };
+    const signed: SignedPlayer = {
+      ...player,
+      _src: `${currentSquad.country_name} ${currentSquad.edition}`,
+      _srcSquadId: currentSquad.id,
+      _srcCode: currentSquad.country,
+    };
     const newSlots = slots.map((s, i) => (i === slotIdx ? { ...s, player: signed } : s));
     const newUsed = new Set(usedPlayerNames);
     newUsed.add(player.name);
@@ -206,7 +231,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
   },
 
-  goToKnockout: () => set({ screen: "knockout", knockoutIdx: 0, knockoutPhase: "preview" }),
+  goToKnockout: () => set({ screen: "knockout", knockoutIdx: 0, knockoutPhase: "preview", knockoutModalOpen: false }),
+
+  /** Open the pre-match popup for the current pending match on the bracket. */
+  openKnockoutModal: () => set({ knockoutModalOpen: true, knockoutPhase: "preview" }),
 
   /** Kick off the currently-previewed knockout match: a brief "simulating"
    *  animation, then the result reveals -- one match at a time, FIFA-style. */
@@ -215,16 +243,14 @@ export const useGameStore = create<GameState>((set, get) => ({
     setTimeout(() => set({ knockoutPhase: "result" }), 1600);
   },
 
-  /** Move on from the just-revealed knockout result: to the next match's
-   *  preview if there is one, otherwise to the final Result screen. */
+  /** Close the just-revealed result and return to the bracket, which now
+   *  shows this match's real outcome and (if you won) unlocks the next
+   *  round's match for you to play. Never auto-navigates -- the player
+   *  browses the bracket and clicks "See Final Result" themselves once
+   *  their run is over, win or lose. */
   continueKnockout: () => {
-    const { knockoutIdx, simResults } = get();
-    const nextGlobalIdx = GROUP_MATCHES + knockoutIdx + 1;
-    if (nextGlobalIdx < simResults.length) {
-      set({ knockoutIdx: knockoutIdx + 1, knockoutPhase: "preview" });
-    } else {
-      set({ screen: "result" });
-    }
+    const { knockoutIdx } = get();
+    set({ knockoutIdx: knockoutIdx + 1, knockoutPhase: "preview", knockoutModalOpen: false });
   },
 
   goToResult: () => set({ screen: "result" }),
@@ -251,7 +277,38 @@ export const useGameStore = create<GameState>((set, get) => ({
     showScorecardFor: null,
     knockoutIdx: 0,
     knockoutPhase: "preview",
+    knockoutModalOpen: false,
   }),
+}), {
+  name: STORAGE_KEY,
+  version: STORAGE_VERSION,
+  storage: createJSONStorage(() => localStorage, { replacer, reviver }),
+  // `data` is the 280 KB dataset -- always refetched from /api/data, never
+  // stored. Everything else is the player's actual progress, which should
+  // survive an accidental refresh mid-draft.
+  partialize: (s) => ({
+    screen: s.screen,
+    mode: s.mode, difficulty: s.difficulty, style: s.style,
+    slots: s.slots, switchesLeft: s.switchesLeft, currentSquad: s.currentSquad,
+    usedPlayerNames: s.usedPlayerNames, turnExcludedSquadIds: s.turnExcludedSquadIds,
+    lastMessage: s.lastMessage,
+    simResults: s.simResults, simMeta: s.simMeta, simRevealed: s.simRevealed,
+    knockoutIdx: s.knockoutIdx, knockoutPhase: s.knockoutPhase,
+  }),
+  onRehydrateStorage: () => (state) => {
+    if (!state) return;
+    // A refresh caught mid-animation would otherwise restore a permanently
+    // spinning "SIMULATING…"; transient view state always starts clean.
+    if (state.knockoutPhase === "simulating") state.knockoutPhase = "preview";
+    state.knockoutModalOpen = false;
+    state.showScorecardFor = null;
+    state.simExpanded = new Set();
+    // Guard against a save written by an older//partial build.
+    if (!Array.isArray(state.slots) || (state.slots.length && state.slots.length !== 11)) {
+      state.screen = "setup";
+      state.slots = [];
+    }
+  },
 }));
 
 /** Is the current market entirely unusable? Triggers a free redraw. */

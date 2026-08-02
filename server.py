@@ -11,11 +11,15 @@ Endpoints:
   GET /                -> web/dist/index.html (the React app)
   GET /<asset>         -> any other file under web/dist (JS/CSS/icons)
   GET /api/data        -> the full dataset from worldcup.db as JSON
+  GET /api/health      -> liveness + dataset size, for scripts and smoke tests
 
 Run:  python server.py         (then open http://localhost:8000)
+Env:  PORT=9000  HOST=0.0.0.0  python server.py
 """
 
+import gzip
 import json
+import mimetypes
 import os
 import sqlite3
 import sys
@@ -23,8 +27,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE, "worldcup.db")
-WEB_DIST = os.path.join(BASE, "web", "dist")
+WEB_DIST = os.path.realpath(os.path.join(BASE, "web", "dist"))
 PORT = int(os.environ.get("PORT", "8000"))
+# Bind to loopback by default: this is a single-player local game, so there's
+# no reason to expose it to the whole LAN unless the user explicitly opts in.
+HOST = os.environ.get("HOST", "127.0.0.1")
 
 CONTENT_TYPES = {
     ".html": "text/html; charset=utf-8",
@@ -33,9 +40,16 @@ CONTENT_TYPES = {
     ".json": "application/json; charset=utf-8",
     ".svg": "image/svg+xml",
     ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
     ".ico": "image/x-icon",
     ".woff2": "font/woff2",
 }
+
+# Worth compressing: text-ish payloads only. Images/fonts are already packed.
+COMPRESSIBLE = {".html", ".css", ".js", ".json", ".svg", ".map"}
+GZIP_MIN_BYTES = 1024
 
 
 def load_data():
@@ -59,18 +73,14 @@ def load_data():
         for r in c.execute("SELECT * FROM editions")
     }
 
-    squads = []
-    # materialize squad rows first: reusing one cursor for the inner players
-    # query would otherwise clobber this outer iteration.
-    squad_rows = c.execute("SELECT * FROM squads ORDER BY edition, country").fetchall()
-    pcur = conn.cursor()
-    pcur.row_factory = sqlite3.Row
-    for s in squad_rows:
-        players = [
+    # One pass over every player, grouped by squad, instead of a query per
+    # squad -- 143 fewer round-trips and it keeps the ORDER BY deterministic.
+    players_by_squad = {}
+    for p in c.execute("SELECT * FROM players ORDER BY squad_id, overall DESC, name"):
+        players_by_squad.setdefault(p["squad_id"], []).append(
             {
                 "name": p["name"],
                 "role": p["role"],
-                "sub_role": p["sub_role"],
                 "bat": p["bat"],
                 "bowl": p["bowl"],
                 "overall": p["overall"],
@@ -78,10 +88,10 @@ def load_data():
                 "award": p["award"],
                 "positions": p["positions"].split(",") if p["positions"] else [],
             }
-            for p in pcur.execute(
-                "SELECT * FROM players WHERE squad_id=? ORDER BY overall DESC", (s["id"],)
-            ).fetchall()
-        ]
+        )
+
+    squads = []
+    for s in c.execute("SELECT * FROM squads ORDER BY edition, country"):
         cty = countries.get(s["country"], {})
         ed = editions.get(s["edition"], {})
         squads.append(
@@ -95,45 +105,106 @@ def load_data():
                 "finish": s["finish"],
                 "champion": ed.get("champion") == s["country"],
                 "runner_up": ed.get("runner_up") == s["country"],
-                "players": players,
+                "players": players_by_squad.get(s["id"], []),
             }
         )
     conn.close()
     return {"countries": countries, "editions": editions, "squads": squads}
 
 
+class _Dataset:
+    """
+    The dataset is built once by build_db.py and never changes while the
+    server runs, so serialize it a single time at startup and hand out the
+    same bytes on every request instead of re-querying SQLite and
+    re-encoding ~370 KB of JSON per page load.
+    """
+
+    def __init__(self):
+        self.raw = b""
+        self.gz = b""
+        self.n_squads = 0
+        self.n_players = 0
+
+    def build(self):
+        data = load_data()
+        self.raw = json.dumps(data, separators=(",", ":")).encode("utf-8")
+        self.gz = gzip.compress(self.raw, 6)
+        self.n_squads = len(data["squads"])
+        self.n_players = sum(len(s["players"]) for s in data["squads"])
+        return self
+
+
+DATASET = _Dataset()
+
+
 class Handler(BaseHTTPRequestHandler):
-    def _send(self, code, body, ctype="text/plain; charset=utf-8"):
+    protocol_version = "HTTP/1.1"  # keep-alive; Content-Length is always set
+    server_version = "SevenNil"
+    sys_version = ""
+
+    def _accepts_gzip(self):
+        return "gzip" in self.headers.get("Accept-Encoding", "").lower()
+
+    def _send(self, code, body, ctype="text/plain; charset=utf-8", cache="no-cache", gz=None):
+        """Send a response, optionally using a pre-compressed `gz` variant."""
         if isinstance(body, str):
             body = body.encode("utf-8")
+        headers = [("Content-Type", ctype), ("Cache-Control", cache)]
+        if gz is not None and self._accepts_gzip():
+            body = gz
+            headers.append(("Content-Encoding", "gzip"))
+            headers.append(("Vary", "Accept-Encoding"))
         self.send_response(code)
-        self.send_header("Content-Type", ctype)
+        for k, v in headers:
+            self.send_header(k, v)
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-cache")
         self.end_headers()
         if self.command != "HEAD":
             self.wfile.write(body)
 
     def _serve_dist(self, relpath):
-        # prevent path traversal
         relpath = relpath.lstrip("/")
-        full = os.path.normpath(os.path.join(WEB_DIST, relpath))
-        if not full.startswith(WEB_DIST) or not os.path.isfile(full):
+        full = os.path.realpath(os.path.join(WEB_DIST, relpath))
+        # Contain the path inside WEB_DIST. Comparing with a trailing separator
+        # matters: a bare startswith would also accept a sibling directory
+        # whose name merely begins with "dist".
+        if not (full == WEB_DIST or full.startswith(WEB_DIST + os.sep)) or not os.path.isfile(full):
             self._send(404, "Not found")
             return
         ext = os.path.splitext(full)[1].lower()
+        ctype = CONTENT_TYPES.get(ext) or mimetypes.guess_type(full)[0] or "application/octet-stream"
+        # Vite fingerprints everything under /assets/ with a content hash, so
+        # those are safe to cache forever; index.html must never be cached or
+        # a rebuild would keep serving the old asset references.
+        cache = "public, max-age=31536000, immutable" if relpath.startswith("assets/") else "no-cache"
         with open(full, "rb") as f:
-            self._send(200, f.read(), CONTENT_TYPES.get(ext, "application/octet-stream"))
+            body = f.read()
+        gz = None
+        if ext in COMPRESSIBLE and len(body) >= GZIP_MIN_BYTES and self._accepts_gzip():
+            gz = gzip.compress(body, 6)
+        self._send(200, body, ctype, cache=cache, gz=gz)
 
     def do_GET(self):
         path = self.path.split("?", 1)[0]
         if path == "/api/data":
             try:
-                self._send(200, json.dumps(load_data()), "application/json; charset=utf-8")
+                if not DATASET.raw:
+                    DATASET.build()
+                self._send(
+                    200, DATASET.raw, "application/json; charset=utf-8",
+                    cache="no-cache", gz=DATASET.gz,
+                )
             except Exception as e:  # pragma: no cover
                 self._send(500, json.dumps({"error": str(e)}), "application/json")
             return
-        if path == "/" or path == "":
+        if path == "/api/health":
+            body = json.dumps({
+                "ok": True, "squads": DATASET.n_squads, "players": DATASET.n_players,
+            })
+            self._send(200, body, "application/json; charset=utf-8")
+            return
+        if path in ("/", ""):
             self._serve_dist("index.html")
             return
         self._serve_dist(path)
@@ -145,7 +216,6 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    # fail fast with a helpful message if DB missing
     if not os.path.exists(DB_PATH):
         print("worldcup.db not found -- building it now...")
         import build_db
@@ -155,11 +225,15 @@ def main():
             "web/dist not found. Build the React front-end first:\n"
             "    cd web && npm install && npm run build"
         )
-    server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
-    url = f"http://localhost:{PORT}"
+
+    DATASET.build()
+    server = ThreadingHTTPServer((HOST, PORT), Handler)
+    shown_host = "localhost" if HOST in ("127.0.0.1", "0.0.0.0") else HOST
     print("=" * 52)
     print("  7-0 World Cup  --  Draft your all-time XI")
-    print(f"  Serving at  {url}")
+    print(f"  Serving at  http://{shown_host}:{PORT}")
+    print(f"  Dataset     {DATASET.n_squads} squads / {DATASET.n_players} players"
+          f"  ({len(DATASET.raw) // 1024} KB, {len(DATASET.gz) // 1024} KB gzipped)")
     print("  Press Ctrl+C to stop.")
     print("=" * 52)
     try:
