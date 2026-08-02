@@ -220,6 +220,19 @@ None of this comes from a hand-picked list of "who counts as a legend" — every
 signal is derived from data already in the dataset (tier tags, country, and
 award wins across all 13 editions), so it stays consistent and defensible.
 
+### Flags
+
+Nation flags are real artwork, not emoji: **emoji flags cannot work on
+Windows**, which ships no glyphs for regional-indicator pairs and renders
+`🇮🇳` as the bare letters "IN". Native 1:1 (square) SVGs from
+[flag-icons](https://github.com/lipis/flag-icons) (MIT) are vendored into
+`web/src/assets/flags/` — only the 18 the dataset needs, kept local so the
+game still works offline. West Indies and East Africa are composite cricket
+sides with no flag to source, so they get a drawn mark in their colours.
+A test fails the build if a nation has no flag, if a flag exists for an
+unknown code, if any vendored SVG isn't square, or if an emoji flag creeps
+back into the UI.
+
 ### Real-life position tags
 
 Every player carries 1-2 tags from: `Opener`, `Middle-order`, `Wicketkeeper`,

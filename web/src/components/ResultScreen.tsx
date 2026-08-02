@@ -5,8 +5,8 @@ import { FileText, Trophy, Target, ChevronDown } from "lucide-react";
 import { useGameStore } from "../store/useGameStore";
 import type { SignedPlayer } from "../engine/types";
 import type { GroupStanding } from "../engine/simulate";
-import { FLAGS } from "../engine/constants";
 import { Button, AwardBadge } from "./ui";
+import Flag from "./Flag";
 import ScorecardModal from "./ScorecardModal";
 
 function GroupTable({ standings }: { standings: GroupStanding[] }) {
@@ -27,7 +27,12 @@ function GroupTable({ standings }: { standings: GroupStanding[] }) {
         {standings.map((row, i) => (
           <tr key={i} className={clsx("border-t border-line", row.isYou && "bg-accent/10 font-bold")}>
             <td className="py-1.5 px-2">{i + 1}</td>
-            <td className="py-1.5 px-2">{row.isYou ? "You" : `${FLAGS[row.code] ?? "🏏"} ${row.name}`}</td>
+            <td className="py-1.5 px-2">
+              <span className="inline-flex items-center gap-1.5">
+                <Flag code={row.code} isYou={row.isYou} />
+                {row.isYou ? "You" : row.name}
+              </span>
+            </td>
             <td className="py-1.5 px-2 text-center">{row.played}</td>
             <td className="py-1.5 px-2 text-center">{row.won}</td>
             <td className="py-1.5 px-2 text-center">{row.lost}</td>
@@ -73,7 +78,7 @@ export default function ResultScreen() {
   const copyResult = () => {
     const lines = [
       `7-0 World Cup — ${verdict} (${won}/${played})`,
-      ...players.map((p) => `${p.role.padEnd(4)} ${p.name} — ${FLAGS[p._srcCode] ?? "🏏"} ${p._src} (${p.overall})`),
+      ...players.map((p) => `${p.role.padEnd(4)} ${p.name} — ${p._src} (${p.overall})`),
     ];
     navigator.clipboard.writeText(lines.join("\n")).then(() => {
       setCopied(true);
@@ -112,7 +117,7 @@ export default function ResultScreen() {
             <div key={i} className="bg-panel border border-line rounded-lg px-2.5 py-2 text-[13px] flex justify-between gap-1.5">
               <span className="truncate">
                 {p.name}
-                <small className="block text-slate-400 text-[10.5px]">{p.role} · {FLAGS[p._srcCode] ?? "🏏"} {p._src}</small>
+                <small className="block text-slate-400 text-[10.5px]">{p.role} · <Flag code={p._srcCode} /> {p._src}</small>
                 {p.award && <span className="block mt-1"><AwardBadge award={p.award} /></span>}
               </span>
               <span className="font-extrabold text-accent">{p.overall}</span>
@@ -162,7 +167,7 @@ export default function ResultScreen() {
               <li key={row.name} className="flex items-center gap-2.5 bg-panel border border-line rounded-lg px-3 py-1.5 text-[13px]">
                 <span className="w-5 text-slate-400 font-bold">{i + 1}</span>
                 <span className="flex-1 min-w-0 truncate">
-                  {row.name} <span className="text-slate-400 text-[11.5px]">{FLAGS[row.teamCode] ?? "🏏"} {row.team}</span>
+                  {row.name} <span className="text-slate-400 text-[11.5px]"><Flag code={row.teamCode} isYou={row.team === "You"} /> {row.team}</span>
                 </span>
                 <span className="font-black text-accent">{row.value}</span>
               </li>
@@ -178,7 +183,7 @@ export default function ResultScreen() {
               <li key={row.name} className="flex items-center gap-2.5 bg-panel border border-line rounded-lg px-3 py-1.5 text-[13px]">
                 <span className="w-5 text-slate-400 font-bold">{i + 1}</span>
                 <span className="flex-1 min-w-0 truncate">
-                  {row.name} <span className="text-slate-400 text-[11.5px]">{FLAGS[row.teamCode] ?? "🏏"} {row.team}</span>
+                  {row.name} <span className="text-slate-400 text-[11.5px]"><Flag code={row.teamCode} isYou={row.team === "You"} /> {row.team}</span>
                 </span>
                 <span className="font-black text-accent">{row.value}</span>
               </li>
@@ -199,7 +204,7 @@ export default function ResultScreen() {
             >
               <span className="text-[13px] font-extrabold text-slate-400 uppercase tracking-wide w-36">{m.stage}</span>
               <span className="flex-1 text-sm">
-                You <b>{m.ourRuns}</b> vs <b>{m.theirRuns}</b> {FLAGS[m.oppCode] ?? "🏏"} {m.oppName} · {m.line}
+                You <b>{m.ourRuns}</b> vs <b>{m.theirRuns}</b> <Flag code={m.oppCode} /> {m.oppName} · {m.line}
               </span>
               <span className={clsx("text-[12px] font-black px-3 py-0.5 rounded-full", m.win ? "bg-win/20 text-win" : "bg-loss/20 text-loss")}>
                 {m.win ? "WON" : "LOST"}

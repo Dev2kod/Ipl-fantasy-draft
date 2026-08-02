@@ -1,21 +1,15 @@
 import clsx from "clsx";
 import { Swords, Trophy, Lock } from "lucide-react";
 import { useGameStore } from "../store/useGameStore";
-import { FLAGS } from "../engine/constants";
 import { Button, CricketBallGlyph } from "./ui";
+import Flag from "./Flag";
 import KnockoutMatchModal from "./KnockoutMatchModal";
 import type { BracketMatch, BracketTeamRef } from "../engine/simulate";
 
 function TeamRow({ team, score, won, hideScore }: { team: BracketTeamRef; score: number; won: boolean; hideScore: boolean }) {
-  const flag = team.isYou ? "🏏" : (FLAGS[team.code] ?? "🏏");
   return (
     <div className={clsx("flex items-center gap-2 py-0.5", won && !hideScore && "font-extrabold")}>
-      <span
-        className="w-5 h-5 rounded flex items-center justify-center text-[10.5px] shrink-0"
-        style={{ background: team.colour }}
-      >
-        {flag}
-      </span>
+      <Flag code={team.code} isYou={team.isYou} className="w-5 h-5 rounded-[3px] shrink-0 ring-1 ring-black/15 object-cover" />
       <span className={clsx("flex-1 min-w-0 truncate", team.isYou && "text-accent font-extrabold")}>
         {team.isYou ? "You" : team.name}
       </span>

@@ -5,9 +5,10 @@ import { Shuffle, CalendarDays, Dices, ArrowLeftRight } from "lucide-react";
 import { useGameStore, isMarketDead } from "../store/useGameStore";
 import { filledCount, switchCandidates, openPositions, eligiblePositionsFor, validMoveTargets } from "../engine/draft";
 import { teamRatings } from "../engine/ratings";
-import { POSITION_FORMATION, FLAGS } from "../engine/constants";
+import { POSITION_FORMATION } from "../engine/constants";
 import { finishLabel } from "../engine/format";
 import { Button, Pill, RatingBar, AwardBadge } from "./ui";
+import Flag from "./Flag";
 import type { Player, Position, SignedPlayer } from "../engine/types";
 
 function XIPanel() {
@@ -51,7 +52,7 @@ function XIPanel() {
                     {slot.player.name}
                     <AwardBadge award={slot.player.award} />
                     <span className="hidden lg:inline text-[10.5px] text-slate-400">
-                      {FLAGS[slot.player._srcCode] ?? "🏏"} {slot.player._src}
+                      <Flag code={slot.player._srcCode} /> {slot.player._src}
                     </span>
                   </span>
                 ) : (
@@ -172,12 +173,11 @@ function MarketPanel() {
               style={{ background: currentSquad.colour }}
             />
             <div className="relative flex items-center gap-2.5">
-              <span
-                className="w-11 h-11 rounded-xl flex items-center justify-center text-2xl shrink-0"
-                style={{ background: currentSquad.colour }}
-              >
-                {FLAGS[currentSquad.country] ?? "🏏"}
-              </span>
+              <Flag
+                code={currentSquad.country}
+                title={currentSquad.country_name}
+                className="w-11 h-11 rounded-xl shrink-0 ring-1 ring-black/15 shadow-sm object-cover"
+              />
               <div className="min-w-0">
                 <div className="text-xl font-black leading-tight truncate" style={{ color: currentSquad.colour }}>
                   {currentSquad.country_name}

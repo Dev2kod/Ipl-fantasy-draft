@@ -9,16 +9,6 @@ export const ROLE_LABEL: Record<Role, string> = {
 
 export const MAX_SWITCHES_PER_PICK = 3;
 
-/** Flag emoji per country code, for the squad card in the draft market.
- *  WI and EAF are historical multi-nation composite sides with no single
- *  national flag, so they get a cricket-themed placeholder instead. */
-export const FLAGS: Record<string, string> = {
-  IND: "🇮🇳", AUS: "🇦🇺", ENG: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", PAK: "🇵🇰",
-  WI: "🏏", SL: "🇱🇰", NZ: "🇳🇿", SA: "🇿🇦",
-  ZIM: "🇿🇼", BAN: "🇧🇩", AFG: "🇦🇫", KEN: "🇰🇪",
-  NED: "🇳🇱", IRE: "🇮🇪", SCO: "🏴󠁧󠁢󠁳󠁣󠁴󠁿", CAN: "🇨🇦",
-  NAM: "🇳🇦", UAE: "🇦🇪", BER: "🇧🇲", EAF: "🌍",
-};
 
 /** The one fixed XI shape the whole game uses: 2 Openers, 4 Middle-order,
  *  1 Wicketkeeper, 4 Bowlers. A slot only accepts a player tagged for that

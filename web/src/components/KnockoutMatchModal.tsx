@@ -3,30 +3,30 @@ import clsx from "clsx";
 import { FileText, Swords, X } from "lucide-react";
 import { useGameStore } from "../store/useGameStore";
 import { GROUP_MATCHES, tossText } from "../engine/simulate";
-import { FLAGS } from "../engine/constants";
 import { Button, CricketBallGlyph } from "./ui";
+import Flag from "./Flag";
 import ScorecardModal from "./ScorecardModal";
 
-function TeamBadge({ name, colour, flag }: { name: string; colour: string; flag: string }) {
+function TeamBadge({ name, code, isYou }: { name: string; code?: string; isYou?: boolean }) {
   return (
     <div className="flex flex-col items-center gap-2 min-w-0">
-      <span
-        className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center text-3xl sm:text-4xl shadow-lg shrink-0"
-        style={{ background: colour }}
-      >
-        {flag}
-      </span>
+      <Flag
+        code={code}
+        isYou={isYou}
+        title={name}
+        className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl shadow-lg shrink-0 ring-1 ring-black/15 object-cover"
+      />
       <span className="font-extrabold text-[12.5px] sm:text-sm text-center max-w-[130px] leading-tight truncate">{name}</span>
     </div>
   );
 }
 
-function VsRow({ oppName, oppColour, oppFlag, dim }: { oppName: string; oppColour: string; oppFlag: string; dim?: boolean }) {
+function VsRow({ oppName, oppCode, dim }: { oppName: string; oppCode: string; dim?: boolean }) {
   return (
     <div className={clsx("flex items-center justify-center gap-5 sm:gap-10 transition-opacity", dim && "opacity-70")}>
-      <TeamBadge name="You" colour="#ff7a1a" flag="🏏" />
+      <TeamBadge name="Your XI" isYou />
       <span className="text-xl sm:text-2xl font-black text-slate-400 shrink-0">VS</span>
-      <TeamBadge name={oppName} colour={oppColour} flag={oppFlag} />
+      <TeamBadge name={oppName} code={oppCode} />
     </div>
   );
 }
@@ -48,7 +48,6 @@ export default function KnockoutMatchModal() {
   const match = simResults[globalIdx];
   if (!knockoutModalOpen || !simMeta || !match) return null;
 
-  const oppFlag = FLAGS[match.oppCode] ?? "🏏";
 
   return (
     <AnimatePresence>
@@ -92,7 +91,7 @@ export default function KnockoutMatchModal() {
                 exit={{ opacity: 0 }}
                 className="relative px-8 pb-9 pt-5"
               >
-                <VsRow oppName={match.oppName} oppColour={match.oppColour} oppFlag={oppFlag} />
+                <VsRow oppName={match.oppName} oppCode={match.oppCode} />
                 <p className="text-center text-slate-400 text-[12.5px] mt-4">Rival strength ≈ {match.oppStrength} · your win chance ≈ {Math.round(match.prob * 100)}%</p>
                 <div className="text-center mt-6">
                   <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} className="inline-block">
@@ -112,7 +111,7 @@ export default function KnockoutMatchModal() {
                 exit={{ opacity: 0 }}
                 className="relative px-8 pb-10 pt-5 text-center"
               >
-                <VsRow oppName={match.oppName} oppColour={match.oppColour} oppFlag={oppFlag} dim />
+                <VsRow oppName={match.oppName} oppCode={match.oppCode} dim />
                 <motion.div
                   animate={{ rotate: 360 }}
                   transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
@@ -132,7 +131,7 @@ export default function KnockoutMatchModal() {
                 className="relative px-6 sm:px-8 pb-8 pt-4"
               >
                 <div className="flex items-center justify-center gap-4 sm:gap-8">
-                  <TeamBadge name="You" colour="#ff7a1a" flag="🏏" />
+                  <TeamBadge name="Your XI" isYou />
                   <div className="text-center shrink-0">
                     <div className="text-[38px] sm:text-[54px] font-black leading-none tracking-tight">
                       {match.ourRuns} <span className="text-slate-400 text-2xl">–</span> {match.theirRuns}
@@ -141,7 +140,7 @@ export default function KnockoutMatchModal() {
                       FULL TIME · {match.win ? "WON" : "LOST"}
                     </span>
                   </div>
-                  <TeamBadge name={match.oppName} colour={match.oppColour} flag={oppFlag} />
+                  <TeamBadge name={match.oppName} code={match.oppCode} />
                 </div>
 
                 <div className="text-center mt-5 text-[13.5px] flex flex-col gap-1.5">

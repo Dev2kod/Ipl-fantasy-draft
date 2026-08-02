@@ -2,9 +2,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import clsx from "clsx";
 import { ChevronDown, FileText } from "lucide-react";
 import { useGameStore } from "../store/useGameStore";
-import { STYLES, FLAGS } from "../engine/constants";
+import { STYLES } from "../engine/constants";
 import { tossText, GROUP_MATCHES } from "../engine/simulate";
 import { OptionCard, Button } from "./ui";
+import Flag from "./Flag";
 import ScorecardModal from "./ScorecardModal";
 
 export default function StyleScreen() {
@@ -62,7 +63,7 @@ export default function StyleScreen() {
                   >
                     <span className="text-[13px] font-extrabold text-slate-400 uppercase tracking-wide">{m.stage}</span>
                     <span className="text-sm">
-                      You <b>{m.ourRuns}</b> &nbsp;vs&nbsp; <b>{m.theirRuns}</b> {FLAGS[m.oppCode] ?? "🏏"} {m.oppName} · {m.line}
+                      You <b>{m.ourRuns}</b> &nbsp;vs&nbsp; <b>{m.theirRuns}</b> <Flag code={m.oppCode} /> {m.oppName} · {m.line}
                     </span>
                     <span className={clsx("text-[12px] font-black px-3 py-0.5 rounded-full", m.win ? "bg-win/20 text-win" : "bg-loss/20 text-loss")}>
                       {m.win ? "WON" : "LOST"}

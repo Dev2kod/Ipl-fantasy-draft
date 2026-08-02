@@ -3,13 +3,13 @@ import { X } from "lucide-react";
 import { useGameStore } from "../store/useGameStore";
 import type { Innings, MatchResult } from "../engine/simulate";
 import { tossText } from "../engine/simulate";
-import { FLAGS } from "../engine/constants";
+import Flag from "./Flag";
 
-function InningsTable({ innings, flag }: { innings: Innings; flag: string }) {
+function InningsTable({ innings, code, isYou }: { innings: Innings; code?: string; isYou?: boolean }) {
   return (
     <div className="bg-panel2 border border-line rounded-xl p-3.5">
       <div className="flex justify-between items-baseline mb-2.5">
-        <h4 className="font-extrabold text-[15px] m-0">{flag} {innings.team}</h4>
+        <h4 className="font-extrabold text-[15px] m-0 inline-flex items-center gap-1.5"><Flag code={code} isYou={isYou} /> {innings.team}</h4>
         <div className="text-lg font-black text-accent">
           {innings.runs}/{innings.wickets} <span className="text-slate-400 text-xs font-normal">({innings.overs.toFixed(1)} ov)</span>
         </div>
@@ -88,8 +88,8 @@ export default function ScorecardModal({ match, onClose }: { match: MatchResult;
             </button>
           </div>
           <div className="grid md:grid-cols-2 gap-3.5">
-            <InningsTable innings={match.innings1} flag={match.innings1.team === "You" ? "🏏" : (FLAGS[match.oppCode] ?? "🏏")} />
-            <InningsTable innings={match.innings2} flag={match.innings2.team === "You" ? "🏏" : (FLAGS[match.oppCode] ?? "🏏")} />
+            <InningsTable innings={match.innings1} code={match.oppCode} isYou={match.innings1.team === "You"} />
+            <InningsTable innings={match.innings2} code={match.oppCode} isYou={match.innings2.team === "You"} />
           </div>
           <p className="text-center mt-4 font-bold">
             {match.line} — <span className={match.win ? "text-win" : "text-loss"}>{match.win ? "You won" : "You lost"}</span>
