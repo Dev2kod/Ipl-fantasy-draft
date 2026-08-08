@@ -27,6 +27,7 @@ export default function MStyle() {
   const [phase, setPhase] = useState<RevealPhase>(() => (started ? "done" : "teams"));
   const [teamsRevealed, setTeamsRevealed] = useState(false);
   const [groupsRevealed, setGroupsRevealed] = useState(false);
+  const [revealedMatches, setRevealedMatches] = useState(() => (started ? GROUP_MATCHES : 0));
 
   const allTeams = simMeta?.allGroupStandings.flat() ?? [];
   const groups = simMeta?.allGroupStandings ?? [];
@@ -45,6 +46,21 @@ export default function MStyle() {
     const id = setTimeout(() => setGroupsRevealed(true), groups.length * 140 + 500);
     return () => clearTimeout(id);
   }, [phase, groups.length]);
+
+  // One group match reveals at a time, on its own delay, rather than all
+  // three landing on screen together -- each feels like its own result.
+  useEffect(() => {
+    if (phase !== "done") return;
+    setRevealedMatches(1);
+    const id = setInterval(() => {
+      setRevealedMatches((n) => {
+        if (n >= groupResults.length) { clearInterval(id); return n; }
+        return n + 1;
+      });
+    }, 900);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
 
   const beginTournament = () => {
     runSimulation();
@@ -181,12 +197,12 @@ export default function MStyle() {
 
         <SectionTitle>Your results</SectionTitle>
         <ul className="list-none m-0 p-0 flex flex-col gap-2">
-          {groupResults.map((m, i) => (
+          {groupResults.slice(0, revealedMatches).map((m, i) => (
             <li key={i}>
               <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.07 }}
+                initial={{ opacity: 0, y: 16, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ type: "spring", stiffness: 260, damping: 22 }}
                 className="rounded-2xl border-2 border-line bg-panel overflow-hidden"
               >
                 <button
@@ -236,26 +252,35 @@ export default function MStyle() {
               </motion.div>
             </li>
           ))}
+          {revealedMatches < groupResults.length && (
+            <li>
+              <div className="rounded-2xl border-2 border-dashed border-line bg-panel2 px-3.5 py-4 text-center text-[13px] text-slate-400 animate-pulse">
+                Playing {groupResults[revealedMatches]?.stage}…
+              </div>
+            </li>
+          )}
         </ul>
       </div>
 
-      <BottomBar>
-        {simMeta?.qualified ? (
-          <>
-            <p className="text-win font-bold text-[13px] text-center m-0 mb-2">
-              Top 2 — you're through to the knockouts.
-            </p>
-            <BigButton onClick={goToKnockout}>Continue to Knockouts</BigButton>
-          </>
-        ) : (
-          <>
-            <p className="text-loss font-bold text-[13px] text-center m-0 mb-2">
-              Not enough to reach the Round of 16.
-            </p>
-            <BigButton onClick={goToResult}>See Final Result</BigButton>
-          </>
-        )}
-      </BottomBar>
+      {revealedMatches >= groupResults.length && (
+        <BottomBar>
+          {simMeta?.qualified ? (
+            <>
+              <p className="text-win font-bold text-[13px] text-center m-0 mb-2">
+                Top 2 — you're through to the knockouts.
+              </p>
+              <BigButton onClick={goToKnockout}>Continue to Knockouts</BigButton>
+            </>
+          ) : (
+            <>
+              <p className="text-loss font-bold text-[13px] text-center m-0 mb-2">
+                Not enough to reach the Round of 16.
+              </p>
+              <BigButton onClick={goToResult}>See Final Result</BigButton>
+            </>
+          )}
+        </BottomBar>
+      )}
 
       {showScorecardFor !== null && simResults[showScorecardFor] && (
         <ScorecardModal match={simResults[showScorecardFor]} />

@@ -26,6 +26,7 @@ export default function StyleScreen() {
   const [phase, setPhase] = useState<RevealPhase>(() => (started ? "done" : "teams"));
   const [teamsRevealed, setTeamsRevealed] = useState(false);
   const [groupsRevealed, setGroupsRevealed] = useState(false);
+  const [revealedMatches, setRevealedMatches] = useState(() => (started ? GROUP_MATCHES : 0));
 
   const allTeams = simMeta?.allGroupStandings.flat() ?? [];
   const groups = simMeta?.allGroupStandings ?? [];
@@ -44,6 +45,21 @@ export default function StyleScreen() {
     const id = setTimeout(() => setGroupsRevealed(true), groups.length * 110 + 500);
     return () => clearTimeout(id);
   }, [phase, groups.length]);
+
+  // One group match reveals at a time, on its own delay, rather than all
+  // three landing on screen together -- each feels like its own result.
+  useEffect(() => {
+    if (phase !== "done") return;
+    setRevealedMatches(1);
+    const id = setInterval(() => {
+      setRevealedMatches((n) => {
+        if (n >= groupResults.length) { clearInterval(id); return n; }
+        return n + 1;
+      });
+    }, 900);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
 
   const beginTournament = () => {
     runSimulation();
@@ -164,14 +180,14 @@ export default function StyleScreen() {
           </div>
 
           <AnimatePresence>
-            {groupResults.map((m, i) => {
+            {groupResults.slice(0, revealedMatches).map((m, i) => {
               const expanded = simExpanded.has(i);
               return (
                 <motion.div
                   key={i}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.06 }}
+                  initial={{ opacity: 0, y: 16, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ type: "spring", stiffness: 260, damping: 22 }}
                   className="rounded-xl overflow-hidden"
                 >
                   <div
@@ -218,26 +234,33 @@ export default function StyleScreen() {
               );
             })}
           </AnimatePresence>
+          {revealedMatches < groupResults.length && (
+            <div className="rounded-xl border-2 border-dashed border-line bg-panel2 px-4 py-3 text-center text-sm text-slate-400 animate-pulse">
+              Playing {groupResults[revealedMatches]?.stage}…
+            </div>
+          )}
 
-          <div className="text-center mt-4">
-            {simMeta.qualified ? (
-              <>
-                <p className="text-win font-bold text-sm mb-2">
-                  Finished top 2 in your group — you're through to the knockouts!
-                </p>
-                <Button size="lg" onClick={goToKnockout}>
-                  Continue to Knockouts →
-                </Button>
-              </>
-            ) : (
-              <>
-                <p className="text-loss font-bold text-sm mb-2">Group Stage complete — not enough to reach the knockouts.</p>
-                <Button size="lg" onClick={goToResult}>
-                  See Final Result →
-                </Button>
-              </>
-            )}
-          </div>
+          {revealedMatches >= groupResults.length && (
+            <div className="text-center mt-4">
+              {simMeta.qualified ? (
+                <>
+                  <p className="text-win font-bold text-sm mb-2">
+                    Finished top 2 in your group — you're through to the knockouts!
+                  </p>
+                  <Button size="lg" onClick={goToKnockout}>
+                    Continue to Knockouts →
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <p className="text-loss font-bold text-sm mb-2">Group Stage complete — not enough to reach the knockouts.</p>
+                  <Button size="lg" onClick={goToResult}>
+                    See Final Result →
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
 
