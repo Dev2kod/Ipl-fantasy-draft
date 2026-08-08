@@ -5,7 +5,7 @@ export default function Footer() {
       <a href="https://7a0.org/en" target="_blank" rel="noopener" className="text-accent2 hover:underline">
         7a0 (Sete a Zero)
       </a>{" "}
-      · Real ODI Cricket World Cup data, 1975–2023 · React + SQLite · a fan-made cricket draft game.
+      · Real ODI Cricket World Cup data, 1975–2023 · a fan-made cricket draft game.
     </footer>
   );
 }
