@@ -1,14 +1,14 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import clsx from "clsx";
-import { FileText, Trophy, Target, ChevronDown, Share2, Loader2 } from "lucide-react";
+import { FileText, Trophy, Target, ChevronDown, Share2, Loader2, Download, X } from "lucide-react";
 import { useGameStore } from "../store/useGameStore";
 import type { SignedPlayer } from "../engine/types";
 import type { GroupStanding } from "../engine/simulate";
 import { Button, AwardBadge } from "./ui";
 import Flag, { flagUrlFor } from "./Flag";
 import ScorecardModal from "./ScorecardModal";
-import { renderResultCard, shareOrDownloadImage } from "../engine/shareCard";
+import { renderResultCard, canShareFile, shareImageFile, downloadImage } from "../engine/shareCard";
 
 function GroupTable({ standings }: { standings: GroupStanding[] }) {
   return (
@@ -52,6 +52,7 @@ export default function ResultScreen() {
   const [openIdx, setOpenIdx] = useState<number | null>(null);
   const [otherGroupsOpen, setOtherGroupsOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [preview, setPreview] = useState<{ blob: Blob; url: string } | null>(null);
 
   if (!simMeta) return null;
   const won = simMeta.won;
@@ -88,7 +89,11 @@ export default function ResultScreen() {
     });
   };
 
-  const shareResult = async () => {
+  const shareText = `Unbeaten XI — ${verdict.replace("🏆 ", "")} (${won}/${played})`;
+  const shareFilename = "unbeaten-xi-result.png";
+  const shareSupported = canShareFile(shareFilename);
+
+  const openPreview = async () => {
     if (sharing) return;
     setSharing(true);
     try {
@@ -103,10 +108,15 @@ export default function ResultScreen() {
         flagUrl: flagUrlFor,
         countryColour: (code) => data?.countries[code]?.colour,
       });
-      await shareOrDownloadImage(blob, "unbeaten-xi-result.png", `Unbeaten XI — ${verdict} (${won}/${played})`);
+      setPreview({ blob, url: URL.createObjectURL(blob) });
     } finally {
       setSharing(false);
     }
+  };
+
+  const closePreview = () => {
+    if (preview) URL.revokeObjectURL(preview.url);
+    setPreview(null);
   };
 
   return (
@@ -241,7 +251,7 @@ export default function ResultScreen() {
       <div className="text-center mt-6 flex justify-center gap-3">
         <Button onClick={restart}>Draft again ↻</Button>
         <Button variant="ghost" onClick={copyResult}>{copied ? "Copied ✓" : "Copy result"}</Button>
-        <Button variant="ghost" onClick={shareResult} disabled={sharing}>
+        <Button variant="ghost" onClick={openPreview} disabled={sharing}>
           <span className="inline-flex items-center gap-1.5">
             {sharing ? <Loader2 size={15} className="animate-spin" /> : <Share2 size={15} />}
             Share as image
@@ -252,6 +262,50 @@ export default function ResultScreen() {
       {openIdx !== null && simResults[openIdx] && (
         <ScorecardModal match={simResults[openIdx]} onClose={() => setOpenIdx(null)} />
       )}
+
+      <AnimatePresence>
+        {preview && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={closePreview}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-panel border border-line rounded-2xl p-5 max-w-md w-full max-h-[85vh] overflow-y-auto scrollbar-thin"
+            >
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-lg font-bold m-0">Share your result</h3>
+                <button onClick={closePreview} className="bg-transparent border-none text-slate-400 hover:text-ink cursor-pointer p-1">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="rounded-xl overflow-hidden border border-line bg-panel2">
+                <img src={preview.url} alt="Your Unbeaten XI result card" className="w-full h-auto block" />
+              </div>
+              <div className="flex gap-2 mt-4">
+                {shareSupported && (
+                  <Button className="grow" onClick={() => shareImageFile(preview.blob, shareFilename, shareText)}>
+                    <span className="inline-flex items-center gap-1.5"><Share2 size={15} /> Share</span>
+                  </Button>
+                )}
+                <Button
+                  variant={shareSupported ? "ghost" : "primary"}
+                  className="grow"
+                  onClick={() => downloadImage(preview.blob, shareFilename)}
+                >
+                  <span className="inline-flex items-center gap-1.5"><Download size={15} /> Save image</span>
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }

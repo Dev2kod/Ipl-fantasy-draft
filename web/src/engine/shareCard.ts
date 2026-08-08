@@ -318,18 +318,29 @@ export async function renderResultCard(d: ShareCardData): Promise<Blob> {
   });
 }
 
-/** Shares the image via the native share sheet when available, otherwise downloads it. */
-export async function shareOrDownloadImage(blob: Blob, filename: string, shareText: string): Promise<void> {
-  const file = new File([blob], filename, { type: "image/png" });
+/** True when the platform can hand this image to its native share sheet. */
+export function canShareFile(filename: string): boolean {
   const nav = navigator as Navigator & { canShare?: (data: { files: File[] }) => boolean };
-  if (nav.canShare?.({ files: [file] })) {
-    try {
-      await navigator.share({ files: [file], title: "Unbeaten XI", text: shareText });
-      return;
-    } catch (e) {
-      if ((e as Error)?.name === "AbortError") return; // user dismissed the share sheet
-    }
+  if (!nav.canShare) return false;
+  try {
+    return nav.canShare({ files: [new File([], filename, { type: "image/png" })] });
+  } catch {
+    return false;
   }
+}
+
+/** Hands the image to the native share sheet. Resolves quietly if the user cancels it. */
+export async function shareImageFile(blob: Blob, filename: string, shareText: string): Promise<void> {
+  const file = new File([blob], filename, { type: "image/png" });
+  try {
+    await navigator.share({ files: [file], title: "Unbeaten XI", text: shareText });
+  } catch (e) {
+    if ((e as Error)?.name !== "AbortError") throw e;
+  }
+}
+
+/** Saves the image straight to the user's downloads. */
+export function downloadImage(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

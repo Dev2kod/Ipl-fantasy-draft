@@ -1,14 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import clsx from "clsx";
-import { RotateCcw, Copy, Check, FileText, Target, Trophy, ChevronDown, Share2, Loader2 } from "lucide-react";
+import { RotateCcw, Copy, Check, FileText, Target, Trophy, ChevronDown, Share2, Loader2, Download, X } from "lucide-react";
 import { useGameStore } from "../store/useGameStore";
 import Flag, { flagUrlFor } from "../components/Flag";
 import ScorecardModal from "../components/ScorecardModal";
-import { BigButton, BottomBar, SectionTitle } from "./mui";
+import { BigButton, BottomBar, SectionTitle, Sheet } from "./mui";
 import type { SignedPlayer } from "../engine/types";
 import type { GroupStanding, LeaderboardRow } from "../engine/simulate";
-import { renderResultCard, shareOrDownloadImage } from "../engine/shareCard";
+import { renderResultCard, canShareFile, shareImageFile, downloadImage } from "../engine/shareCard";
 
 function ordinal(n: number) {
   const s = ["th", "st", "nd", "rd"], v = n % 100;
@@ -72,6 +72,9 @@ export default function MResult() {
   const [openIdx, setOpenIdx] = useState<number | null>(null);
   const [othersOpen, setOthersOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [preview, setPreview] = useState<{ blob: Blob; url: string } | null>(null);
+
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview.url); }, [preview]);
 
   if (!simMeta) return null;
   const { won, played, champion, reachedFinal, qualified, groupRank, stageReached } = simMeta;
@@ -96,7 +99,11 @@ export default function MResult() {
     });
   };
 
-  const share = async () => {
+  const shareText = `Unbeaten XI — ${verdict} (${won}/${played})`;
+  const shareFilename = "unbeaten-xi-result.png";
+  const shareSupported = canShareFile(shareFilename);
+
+  const openPreview = async () => {
     if (sharing) return;
     setSharing(true);
     try {
@@ -111,10 +118,15 @@ export default function MResult() {
         flagUrl: flagUrlFor,
         countryColour: (code) => data?.countries[code]?.colour,
       });
-      await shareOrDownloadImage(blob, "unbeaten-xi-result.png", `Unbeaten XI — ${verdict} (${won}/${played})`);
+      setPreview({ blob, url: URL.createObjectURL(blob) });
     } finally {
       setSharing(false);
     }
+  };
+
+  const closePreview = () => {
+    if (preview) URL.revokeObjectURL(preview.url);
+    setPreview(null);
   };
 
   return (
@@ -243,11 +255,38 @@ export default function MResult() {
           <BigButton tone="ghost" onClick={copy} className="!w-auto px-5" ariaLabel="Copy result to clipboard">
             {copied ? <Check size={17} aria-hidden="true" /> : <Copy size={17} aria-hidden="true" />}
           </BigButton>
-          <BigButton tone="ghost" onClick={share} disabled={sharing} className="!w-auto px-5" ariaLabel="Share your XI and result as an image">
+          <BigButton tone="ghost" onClick={openPreview} disabled={sharing} className="!w-auto px-5" ariaLabel="Preview a shareable image of your XI and result">
             {sharing ? <Loader2 size={17} className="animate-spin" aria-hidden="true" /> : <Share2 size={17} aria-hidden="true" />}
           </BigButton>
         </div>
       </BottomBar>
+
+      <Sheet open={!!preview} onClose={closePreview} title="Share your result">
+        {preview && (
+          <div className="flex flex-col gap-3">
+            <div className="rounded-2xl overflow-hidden border border-line bg-panel2">
+              <img src={preview.url} alt="Your Unbeaten XI result card" className="w-full h-auto block" />
+            </div>
+            <div className="flex gap-2">
+              {shareSupported && (
+                <BigButton className="grow" onClick={() => shareImageFile(preview.blob, shareFilename, shareText)}>
+                  <Share2 size={17} aria-hidden="true" /> Share
+                </BigButton>
+              )}
+              <BigButton
+                tone={shareSupported ? "ghost" : "primary"}
+                className="grow"
+                onClick={() => downloadImage(preview.blob, shareFilename)}
+              >
+                <Download size={17} aria-hidden="true" /> Save image
+              </BigButton>
+            </div>
+            <BigButton tone="ghost" onClick={closePreview}>
+              <X size={16} aria-hidden="true" /> Close
+            </BigButton>
+          </div>
+        )}
+      </Sheet>
 
       {openIdx !== null && simResults[openIdx] && (
         <ScorecardModal match={simResults[openIdx]} onClose={() => setOpenIdx(null)} />
