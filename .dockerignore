@@ -1,0 +1,11 @@
+# Keep the build context small and avoid baking host-specific junk in.
+.git
+.gitignore
+__pycache__
+*.pyc
+worldcup.db
+web/node_modules
+web/dist
+web/src/engine/__tests__/fixtures/dataset.json
+.claude
+*.log

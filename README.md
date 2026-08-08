@@ -53,6 +53,41 @@ to the rest of your network unless you opt in with `HOST=0.0.0.0`.
 For front-end development with hot reload: `cd web && npm run dev` (proxies
 `/api` to `python server.py` running on port 8000).
 
+## Hosting it publicly
+
+The game is a single process (stdlib Python + a pre-built static front-end),
+so it packages into one small Docker image — no database service, no
+build step at runtime.
+
+```bash
+docker build -t seven-nil .
+docker run -p 8000:8000 seven-nil
+# open http://localhost:8000
+```
+
+**Free option: [Render](https://render.com)**, verified current as of this
+writing — genuinely free to start (no credit card), and natively runs a
+Dockerfile. This repo includes `render.yaml`, so Render → New → Blueprint →
+select this repo deploys it with no dashboard configuration. The tradeoff:
+the free tier sleeps after 15 minutes idle and takes about a minute to wake
+on the next request — fine for sharing a link with friends, not for
+something that needs to always be instantly up. (Fly.io and Railway were
+also checked: Fly.io now requires a card and bills per usage since 2024;
+Railway gives a one-time trial credit before it does too. Render was the
+only one of the three still genuinely free for a small always-idle app.)
+
+**Always-on option: any VPS** (a $4–6/month box from any provider works —
+it only needs to run Docker, or just Python directly). Either run the image
+above, or clone the repo and run `python server.py` behind a process
+supervisor (`systemd`, `pm2`, etc.) so it restarts if it crashes or the box
+reboots. Put a reverse proxy (Caddy or nginx) in front for HTTPS — the
+stdlib server here speaks plain HTTP only.
+
+**Before exposing it beyond your own machine**, know what you're opening up:
+there's no login and no rate limiting, so anyone with the URL can play, and
+on a shared host `/api/data` is plain unauthenticated JSON. Fine for a
+personal/friends game; don't put anything sensitive behind it as-is.
+
 ### Tests
 
 ```bash

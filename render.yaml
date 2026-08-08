@@ -1,0 +1,19 @@
+# Render "Blueprint" — connect this repo at render.com/select-repo and Render
+# reads this file automatically to create the service (Dashboard → New →
+# Blueprint). No dashboard configuration needed beyond that.
+#
+# Free tier: no credit card to start, 750 instance-hours/month, but the
+# service sleeps after 15 min idle and takes ~1 min to wake on the next
+# request. Fine for a hobby/demo link; upgrade the plan for always-on.
+services:
+  - type: web
+    name: seven-nil-world-cup
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      # PORT is injected by Render itself; server.py already reads it via
+      # os.environ, so nothing else needs setting.
