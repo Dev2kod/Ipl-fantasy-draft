@@ -198,15 +198,16 @@ function makeBatters(names: string[], runs: number, wicketsDown: number, totalBa
   const battersShown = Math.min(names.length, wicketsDown + (wicketsDown >= 10 ? 1 : 2));
   const outCount = Math.min(wicketsDown, battersShown);
 
-  const runShares: number[] = [];
-  let remaining = runs;
-  for (let i = 0; i < battersShown; i++) {
-    const isLast = i === battersShown - 1;
-    const share = isLast ? remaining : Math.max(0, Math.round(remaining * (0.15 + Math.random() * 0.35)));
-    runShares.push(Math.max(0, share));
-    remaining -= share;
-  }
-  runShares.sort((a, b) => b - a); // top order scores more, in batting-order position
+  // Top order gets more of a *chance* at a big score (real batting-order
+  // structure), but it's a soft bias, not a guarantee -- a wide per-batter
+  // luck multiplier means any position can have the standout day, so the
+  // opener isn't mechanically forced to be the innings' top scorer.
+  const weights = Array.from({ length: battersShown }, (_, i) => {
+    const positionBias = 1 / (1 + i * 0.22);
+    const luck = 0.3 + Math.random() ** 1.6 * 2.4;
+    return positionBias * luck;
+  });
+  const runShares = splitExactly(weights, runs, 0);
 
   // Every ball actually faced by this innings' batters must sum to exactly
   // totalBalls (the same figure the bowling card's overs are built from) --
@@ -225,18 +226,27 @@ function makeBowlers(names: string[], wicketsTaken: number, totalBalls: number, 
   const ballAlloc = distributeBalls(totalBalls, nBowl);
 
   const bowledIdx = ballAlloc.map((b, i) => ({ b, i })).filter((x) => x.b > 0);
-  let wktsLeft = wicketsTaken;
-  let runsLeft = runsConceded;
 
-  return bowledIdx.map(({ b, i }, k) => {
-    const isLast = k === bowledIdx.length - 1;
-    const share = b / totalBalls;
-    const w = isLast ? wktsLeft : Math.min(wktsLeft, Math.round(wicketsTaken * share * (0.6 + Math.random() * 0.8)));
-    wktsLeft -= w;
-    const rc = isLast ? Math.max(0, runsLeft) : Math.max(0, Math.min(runsLeft, Math.round(runsConceded * share * (0.7 + Math.random() * 0.6))));
-    runsLeft -= rc;
-    return { name: usableNames[i], overs: ballsToOvers(b), runsConceded: Math.max(0, rc), wickets: Math.max(0, w) };
-  });
+  // Each bowler's overs are near-equal by design (the round-robin above), so
+  // splitting wickets/runs proportionally to overs bowled just hands
+  // everyone ~1 wicket in sequence -- no "strike bowler" spells. Instead,
+  // give each bowler a fixed per-innings form factor (skewed so most days
+  // are modest but a few are a standout spell) and run each wicket as its
+  // own weighted lottery against that form -- realistic clumping instead of
+  // a flat split, while still summing to exactly what actually fell.
+  const form = bowledIdx.map(() => 0.35 + Math.random() ** 1.8 * 3);
+  const wicketCounts = new Array(bowledIdx.length).fill(0);
+  for (let w = 0; w < wicketsTaken; w++) {
+    const k = weightedPick(bowledIdx.map((_, idx) => idx), (idx) => bowledIdx[idx].b * form[idx]);
+    wicketCounts[k]++;
+  }
+
+  const runWeights = bowledIdx.map(({ b }, k) => b * (0.5 + Math.random() * 1.1) * (1 + wicketCounts[k] * 0.15));
+  const runShares = splitExactly(runWeights, runsConceded, 0);
+
+  return bowledIdx.map(({ b, i }, k) => ({
+    name: usableNames[i], overs: ballsToOvers(b), runsConceded: runShares[k], wickets: wicketCounts[k],
+  }));
 }
 
 function makeInnings(
