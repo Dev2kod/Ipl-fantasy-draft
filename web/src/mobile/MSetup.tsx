@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Trophy, Flame, Eye, LayoutList, BookOpen, ChevronRight, Play, ArrowLeft } from "lucide-react";
+import { Trophy, Flame, Eye, LayoutList, BookOpen, ChevronRight, Play, ArrowLeft, Sparkles } from "lucide-react";
 import { useGameStore } from "../store/useGameStore";
 import { MODES, DIFFICULTIES, POSITION_FORMATION } from "../engine/constants";
 import { CricketBallGlyph } from "../components/ui";
@@ -22,6 +22,21 @@ const SNAPSHOTS = [
     title: "A real 32-team World Cup",
     desc: "8 groups of 4, then Round of 16 → Quarter-Final → Semi-Final → Final, plus a stats leaderboard.",
   },
+];
+
+const TRIVIA = [
+  "The first Cricket World Cup was held in England in 1975 — West Indies, led by Clive Lloyd, won it.",
+  "Kapil Dev's India shocked the cricket world by winning the 1983 World Cup, beating the mighty West Indies in the final at Lord's.",
+  "The 1992 World Cup was the first to use coloured kits, white balls, and day-night matches.",
+  "The 1996 World Cup was jointly hosted by India, Pakistan, and Sri Lanka — Sri Lanka won their only title that year.",
+  "Australia have won the trophy six times — 1987, 1999, 2003, 2007, 2015, and 2023 — more than any other side.",
+  "The 2019 final between England and New Zealand finished tied after 50 overs, then tied again after a Super Over — England won only on a boundary-count countback.",
+  "In the 1999 semi-final, Allan Donald's run-out off the last ball sent Australia through over South Africa in one of the game's most agonising finishes.",
+  "A bowler can send down a maximum of 10 overs in a 50-over ODI innings, no matter how well they're bowling.",
+  "Sachin Tendulkar is cricket's all-time leading run-scorer at the World Cup, across a record six tournaments.",
+  "Associate nations like Kenya, Netherlands, Canada, and even one-off entrants like East Africa have all played in a Cricket World Cup.",
+  "The Duckworth-Lewis method (now DLS) recalculates a target when rain interrupts an innings — first used in international cricket in 1997.",
+  "Zimbabwe's 1983 upset over Australia, led by captain Duncan Fletcher's 4 wickets and 69 runs, remains one of the great World Cup shocks.",
 ];
 
 const HOW_TO_PLAY = [
@@ -51,8 +66,15 @@ export default function MSetup() {
   const { data, mode, difficulty, setMode, setDifficulty, startDraft } = useGameStore();
   const [view, setView] = useState<"home" | "settings">("home");
   const [howToPlay, setHowToPlay] = useState(false);
+  const [triviaIdx, setTriviaIdx] = useState(0);
   const nSq = data?.squads.length ?? 0;
   const nPl = data ? data.squads.reduce((a, s) => a + s.players.length, 0) : 0;
+
+  useEffect(() => {
+    if (view !== "home") return;
+    const id = setInterval(() => setTriviaIdx((i) => (i + 1) % TRIVIA.length), 5000);
+    return () => clearInterval(id);
+  }, [view]);
 
   return (
     <div className="flex flex-col min-h-0 grow">
@@ -66,83 +88,56 @@ export default function MSetup() {
               exit={{ opacity: 0, x: -12 }}
               transition={{ duration: 0.18 }}
             >
-              <header className="relative pt-6 pb-2 text-center overflow-hidden">
-                <CricketBallGlyph className="absolute w-28 h-28 text-accent/10 -top-4 -left-8 -rotate-12 pointer-events-none" />
-                <CricketBallGlyph className="absolute w-36 h-36 text-accent2/10 -bottom-6 -right-10 rotate-12 pointer-events-none" />
+              <header className="relative pt-7 pb-3 text-center overflow-hidden">
+                <CricketBallGlyph className="absolute w-32 h-32 text-accent/10 -top-4 -left-8 -rotate-12 pointer-events-none" />
+                <CricketBallGlyph className="absolute w-40 h-40 text-accent2/10 -bottom-6 -right-10 rotate-12 pointer-events-none" />
 
-                <h1 className="relative text-[32px] leading-[1.15] font-black m-0">
+                <h1 className="relative text-[34px] leading-[1.12] font-black m-0">
                   Build a Champion XI.
                   <br />
                   Chase the perfect <span className="text-accent">7–0</span>.
                 </h1>
-                <p className="relative text-[14px] text-slate-400 mt-3 mb-0">
-                  Draft one player at a time from real World Cup squads, then take your XI
-                  through a 32-team tournament.
+                <p className="relative text-[14.5px] text-slate-400 mt-3 mb-0 max-w-[320px] mx-auto">
+                  Each turn draws a real nation and World Cup year as your market. Draft one
+                  player at a time, then take your XI through a genuine 32-team tournament —
+                  win every match, up to seven, completely unbeaten.
                 </p>
-                <dl className="relative flex justify-center gap-5 mt-4 mb-0">
+                <dl className="relative flex justify-center gap-6 mt-5 mb-0">
                   {[
                     ["13", "World Cups"],
                     [String(nSq || 143), "Squads"],
                     [nPl ? nPl.toLocaleString() : "2,050", "Players"],
                   ].map(([v, k]) => (
                     <div key={k} className="text-center">
-                      <dd className="text-[20px] font-black text-accent m-0 leading-none">{v}</dd>
+                      <dd className="text-[22px] font-black text-accent m-0 leading-none">{v}</dd>
                       <dt className="text-[10.5px] uppercase tracking-wider text-slate-400 font-bold mt-1">{k}</dt>
                     </div>
                   ))}
                 </dl>
 
-                <div className="relative flex justify-center mt-7 mb-2">
-                  <motion.button
-                    type="button"
-                    onClick={() => setView("settings")}
-                    disabled={!data}
-                    whileTap={{ scale: 0.96 }}
-                    aria-label="Play — choose your ratings mode and difficulty"
-                    className="relative w-[132px] h-[132px] rounded-full grid place-items-center disabled:opacity-40"
-                  >
-                    <motion.span
-                      aria-hidden="true"
-                      className="absolute inset-0 rounded-full bg-accent/40"
-                      animate={{ scale: [1, 1.35, 1.35], opacity: [0.55, 0, 0] }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }}
-                    />
-                    <motion.span
-                      aria-hidden="true"
-                      className="absolute inset-2 rounded-full bg-accent/30"
-                      animate={{ scale: [1, 1.22, 1.22], opacity: [0.6, 0, 0] }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "easeOut", delay: 0.35 }}
-                    />
-                    <span className="relative w-full h-full rounded-full bg-gradient-to-br from-accent2 to-accent shadow-xl flex flex-col items-center justify-center gap-0.5">
-                      <Play size={34} fill="#20160a" className="text-[#20160a] translate-x-[2px]" aria-hidden="true" />
-                      <span className="text-[13px] font-black tracking-wide text-[#20160a]">PLAY</span>
-                    </span>
-                  </motion.button>
-                </div>
-
                 <button
                   type="button"
                   onClick={() => setHowToPlay(true)}
-                  className="relative inline-flex items-center gap-1.5 mt-3 min-h-[40px] px-4 rounded-full border-2 border-line bg-panel text-[13px] font-bold active:bg-panel2"
+                  className="relative inline-flex items-center gap-1.5 mt-5 min-h-[40px] px-4 rounded-full border-2 border-line bg-panel text-[13px] font-bold active:bg-panel2"
                 >
                   <BookOpen size={14} className="text-accent2" aria-hidden="true" /> How to play
                   <ChevronRight size={14} aria-hidden="true" />
                 </button>
               </header>
 
-              <section aria-labelledby="m-see-it" className="mt-5">
+              <section aria-labelledby="m-see-it" className="mt-6">
                 <SectionTitle>
                   <span id="m-see-it" className="inline-flex items-center gap-1.5">
                     <Eye size={13} aria-hidden="true" /> See it in action
                   </span>
                 </SectionTitle>
-                <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-1 -mx-4 px-4 [scrollbar-width:none]">
+                <div className="flex flex-col gap-4">
                   {SNAPSHOTS.map((snap) => (
                     <div
                       key={snap.src}
-                      className="shrink-0 w-[78%] max-w-[280px] snap-start bg-panel border border-line rounded-2xl overflow-hidden shadow-xl"
+                      className="bg-panel border border-line rounded-2xl overflow-hidden shadow-xl"
                     >
-                      <div className="h-32 overflow-hidden border-b border-line">
+                      <div className="h-44 overflow-hidden border-b border-line">
                         <img
                           src={snap.src}
                           alt={snap.title}
@@ -150,16 +145,50 @@ export default function MSetup() {
                           className="w-full h-full object-cover object-top block"
                         />
                       </div>
-                      <div className="p-3">
-                        <h3 className="font-extrabold text-[13.5px] m-0 mb-1">{snap.title}</h3>
-                        <p className="text-slate-400 text-[12px] m-0">{snap.desc}</p>
+                      <div className="p-3.5">
+                        <h3 className="font-extrabold text-[14.5px] m-0 mb-1">{snap.title}</h3>
+                        <p className="text-slate-400 text-[12.5px] m-0">{snap.desc}</p>
                       </div>
                     </div>
                   ))}
                 </div>
               </section>
 
-              <section aria-labelledby="m-shape" className="mt-5">
+              <section aria-labelledby="m-trivia" className="mt-6">
+                <SectionTitle>
+                  <span id="m-trivia" className="inline-flex items-center gap-1.5">
+                    <Sparkles size={13} aria-hidden="true" /> Did you know?
+                  </span>
+                </SectionTitle>
+                <div className="relative bg-panel border border-line rounded-2xl p-4 min-h-[92px] overflow-hidden">
+                  <AnimatePresence mode="wait">
+                    <motion.p
+                      key={triviaIdx}
+                      initial={{ opacity: 0, x: 16 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -16 }}
+                      transition={{ duration: 0.35 }}
+                      className="text-[13.5px] text-ink leading-relaxed m-0"
+                    >
+                      {TRIVIA[triviaIdx]}
+                    </motion.p>
+                  </AnimatePresence>
+                  <div className="flex justify-center gap-1.5 mt-3">
+                    {TRIVIA.map((_, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setTriviaIdx(i)}
+                        aria-label={`Trivia ${i + 1} of ${TRIVIA.length}`}
+                        aria-current={i === triviaIdx}
+                        className={i === triviaIdx ? "w-4 h-1.5 rounded-full bg-accent" : "w-1.5 h-1.5 rounded-full bg-line"}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </section>
+
+              <section aria-labelledby="m-shape" className="mt-6">
                 <SectionTitle>
                   <span id="m-shape" className="inline-flex items-center gap-1.5">
                     <LayoutList size={13} aria-hidden="true" /> Your XI shape
@@ -243,13 +272,17 @@ export default function MSetup() {
         </AnimatePresence>
       </div>
 
-      {view === "settings" && (
-        <BottomBar>
+      <BottomBar>
+        {view === "home" ? (
+          <BigButton onClick={() => setView("settings")} disabled={!data}>
+            <Play size={18} aria-hidden="true" /> Play
+          </BigButton>
+        ) : (
           <BigButton onClick={startDraft} disabled={!data}>
             <Trophy size={18} aria-hidden="true" /> Start the Draft
           </BigButton>
-        </BottomBar>
-      )}
+        )}
+      </BottomBar>
 
       <Sheet open={howToPlay} onClose={() => setHowToPlay(false)} title="How to play">
         <ol className="flex flex-col gap-4 m-0 p-0 list-none">
