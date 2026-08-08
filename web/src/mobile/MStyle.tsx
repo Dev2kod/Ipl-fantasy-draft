@@ -1,13 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import clsx from "clsx";
-import { Zap, FileText, ChevronDown } from "lucide-react";
+import { Zap, FileText, ChevronDown, Shuffle, Users } from "lucide-react";
 import { useGameStore } from "../store/useGameStore";
 import { STYLES } from "../engine/constants";
 import { tossText, GROUP_MATCHES } from "../engine/simulate";
 import Flag from "../components/Flag";
 import ScorecardModal from "../components/ScorecardModal";
 import { BigButton, ChoiceCard, BottomBar, SectionTitle } from "./mui";
+
+type RevealPhase = "teams" | "groups" | "done";
 
 export default function MStyle() {
   const {
@@ -18,6 +20,36 @@ export default function MStyle() {
 
   const started = simResults.length > 0;
   const groupResults = simResults.slice(0, GROUP_MATCHES);
+
+  // A page reload while already past the draw shouldn't replay it -- only a
+  // fresh "Simulate" click (which flips `started` false -> true this session)
+  // should trigger the reveal sequence.
+  const [phase, setPhase] = useState<RevealPhase>(() => (started ? "done" : "teams"));
+  const [teamsRevealed, setTeamsRevealed] = useState(false);
+  const [groupsRevealed, setGroupsRevealed] = useState(false);
+
+  const allTeams = simMeta?.allGroupStandings.flat() ?? [];
+  const groups = simMeta?.allGroupStandings ?? [];
+
+  useEffect(() => {
+    if (!started || phase !== "teams") return;
+    setTeamsRevealed(false);
+    const id = setTimeout(() => setTeamsRevealed(true), Math.min(allTeams.length * 35, 1400) + 300);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [started, phase]);
+
+  useEffect(() => {
+    if (phase !== "groups") return;
+    setGroupsRevealed(false);
+    const id = setTimeout(() => setGroupsRevealed(true), groups.length * 140 + 500);
+    return () => clearTimeout(id);
+  }, [phase, groups.length]);
+
+  const beginTournament = () => {
+    runSimulation();
+    setPhase("teams");
+  };
 
   if (!started) {
     return (
@@ -40,9 +72,100 @@ export default function MStyle() {
           </div>
         </div>
         <BottomBar>
-          <BigButton onClick={runSimulation}>
+          <BigButton onClick={beginTournament}>
             <Zap size={18} aria-hidden="true" /> Simulate the Cup Run
           </BigButton>
+        </BottomBar>
+      </div>
+    );
+  }
+
+  if (phase === "teams") {
+    return (
+      <div className="flex flex-col min-h-0 grow">
+        <div className="grow overflow-y-auto px-4 pb-4">
+          <h1 className="text-[22px] font-black text-center mt-5 mb-1">Assembling the World Cup</h1>
+          <p className="text-[13px] text-slate-400 text-center mt-0 mb-4">
+            32 teams, drawn from every World Cup, 1975–2023 — including yours.
+          </p>
+          <div className="grid grid-cols-4 gap-2.5">
+            {allTeams.map((t, i) => (
+              <motion.div
+                key={`${t.code}-${t.name}-${i}`}
+                initial={{ opacity: 0, scale: 0.5, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ delay: Math.min(i * 0.035, 1.1), type: "spring", stiffness: 260, damping: 18 }}
+                className={clsx(
+                  "rounded-xl border-2 p-1.5 flex flex-col items-center gap-1 text-center",
+                  t.isYou ? "border-accent bg-accent/10" : "border-line bg-panel"
+                )}
+              >
+                <Flag code={t.code} isYou={t.isYou} className="w-7 h-7 rounded shrink-0 ring-1 ring-black/10 object-cover" />
+                <span className="text-[9px] font-bold leading-tight truncate w-full">{t.isYou ? "You" : t.name}</span>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+        <BottomBar>
+          {teamsRevealed ? (
+            <BigButton onClick={() => setPhase("groups")}>
+              <Shuffle size={18} aria-hidden="true" /> Draw Groups
+            </BigButton>
+          ) : (
+            <p className="text-center text-[13px] text-slate-400 animate-pulse m-0 py-3">Drawing the field…</p>
+          )}
+        </BottomBar>
+      </div>
+    );
+  }
+
+  if (phase === "groups") {
+    return (
+      <div className="flex flex-col min-h-0 grow">
+        <div className="grow overflow-y-auto px-4 pb-4">
+          <h1 className="text-[22px] font-black text-center mt-5 mb-1">Drawing the Groups</h1>
+          <p className="text-[13px] text-slate-400 text-center mt-0 mb-4">
+            8 groups of 4 — every team plays all 3 group matches, no matter the result.
+          </p>
+          <div className="flex flex-col gap-3">
+            {groups.map((g, gi) => (
+              <motion.div
+                key={gi}
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: gi * 0.14 }}
+                className={clsx(
+                  "rounded-2xl border-2 p-3",
+                  g.some((t) => t.isYou) ? "border-accent bg-accent/8" : "border-line bg-panel"
+                )}
+              >
+                <h3 className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-slate-400 m-0 mb-2">
+                  <Users size={12} aria-hidden="true" /> Group {gi + 1}
+                </h3>
+                <div className="grid grid-cols-4 gap-2">
+                  {g.map((t, ti) => (
+                    <motion.div
+                      key={t.code + ti}
+                      initial={{ opacity: 0, scale: 0.6 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: gi * 0.14 + ti * 0.06 + 0.1 }}
+                      className="flex flex-col items-center gap-1 text-center"
+                    >
+                      <Flag code={t.code} isYou={t.isYou} className="w-7 h-7 rounded shrink-0 ring-1 ring-black/10 object-cover" />
+                      <span className="text-[9px] font-bold leading-tight truncate w-full">{t.isYou ? "You" : t.name}</span>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+        <BottomBar>
+          {groupsRevealed ? (
+            <BigButton onClick={() => setPhase("done")}>Enter the Tournament</BigButton>
+          ) : (
+            <p className="text-center text-[13px] text-slate-400 animate-pulse m-0 py-3">Forming the groups…</p>
+          )}
         </BottomBar>
       </div>
     );
