@@ -88,6 +88,21 @@ there's no login and no rate limiting, so anyone with the URL can play, and
 on a shared host `/api/data` is plain unauthenticated JSON. Fine for a
 personal/friends game; don't put anything sensitive behind it as-is.
 
+**Static option: [Vercel](https://vercel.com)** — the front-end is a plain
+Vite build with no server-side logic, so it also deploys as a pure static
+site, no Python runtime involved at all. `web/public/data.json` is a
+pre-exported, checked-in snapshot of the same dataset `/api/data` serves
+(`python export_data.py` regenerates it after any `build_db.py` change), and
+the front-end (`web/src/engine/data.ts`) already tries `/api/data` first and
+falls back to `/data.json` when there's no live server to ask. This repo's
+`vercel.json` points Vercel at the `web/` subfolder for the install/build
+commands and output directory. To deploy: push to GitHub, then in Vercel
+**Add New → Project → import this repo** — it picks up `vercel.json`
+automatically, so no dashboard configuration is needed beyond connecting the
+repo. Every deploy serves whatever `data.json` is currently committed, so
+re-run `python export_data.py` and commit the result whenever `data_wc/`
+changes.
+
 ### Tests
 
 ```bash
