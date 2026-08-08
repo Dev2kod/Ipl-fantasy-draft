@@ -25,7 +25,7 @@ import type { Player, Position, SignedPlayer } from "../engine/types";
 export default function MDraft() {
   const {
     data, currentSquad, slots, switchesLeft, lastMessage, mode,
-    drawNext, doSwitch, draftPlayer, movePlayer, usedPlayerNames, turnExcludedSquadIds, goToStyle,
+    drawNext, doSwitch, draftPlayer, movePlayer, usedPlayerNames, turnExcludedSquadIds, goToStyle, flashMessage,
   } = useGameStore();
 
   const [tab, setTab] = useState<"market" | "xi">("market");
@@ -70,7 +70,17 @@ export default function MDraft() {
 
   const pick = (p: Player) => {
     const opts = optionsFor(p);
-    if (!opts.length) return;
+    if (!opts.length) {
+      // Explain the no-op instead of leaving the tap looking like it did
+      // nothing: either every slot they're tagged for is already full, or
+      // they're already signed from an earlier World Cup.
+      if (usedPlayerNames.has(p.name)) {
+        flashMessage(`${p.name} is already in your XI.`);
+      } else {
+        flashMessage(`No open slot for ${p.name} (${p.positions.join(" / ")}) right now.`);
+      }
+      return;
+    }
     if (opts.length === 1) { draftPlayer(p.name, opts[0]); return; }
     setChoosing(p);                              // more than one slot fits: let them choose
   };
@@ -156,12 +166,16 @@ export default function MDraft() {
                     <button
                       type="button"
                       onClick={() => pick(p)}
-                      disabled={!fits}
-                      aria-label={`Sign ${p.name}, ${p.positions.join(" or ")}, rated ${p.overall}`}
+                      aria-disabled={!fits}
+                      aria-label={
+                        fits
+                          ? `Sign ${p.name}, ${p.positions.join(" or ")}, rated ${p.overall}`
+                          : `${p.name}, ${p.positions.join(" or ")}, rated ${p.overall} — no open slot right now, tap to see why`
+                      }
                       className={clsx(
                         "w-full text-left rounded-2xl border-2 px-3.5 py-3 min-h-[64px] flex items-center gap-3 transition-colors",
                         fits ? "bg-panel2 border-line active:border-accent active:bg-accent/5"
-                             : "bg-panel2 border-line opacity-40 grayscale-[.5] cursor-not-allowed"
+                             : "bg-panel2 border-line opacity-40 grayscale-[.5]"
                       )}
                     >
                       {p.captain && (

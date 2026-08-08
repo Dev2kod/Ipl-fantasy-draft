@@ -109,7 +109,7 @@ function XIPanel() {
 function MarketPanel() {
   const {
     data, currentSquad, slots, switchesLeft, lastMessage, mode,
-    drawNext, doSwitch, draftPlayer, usedPlayerNames, turnExcludedSquadIds,
+    drawNext, doSwitch, draftPlayer, usedPlayerNames, turnExcludedSquadIds, flashMessage,
   } = useGameStore();
   const [choosingFor, setChoosingFor] = useState<string | null>(null);
 
@@ -147,7 +147,17 @@ function MarketPanel() {
 
   const handlePick = (p: Player) => {
     const opts = optionsFor(p);
-    if (opts.length === 0) return;
+    if (opts.length === 0) {
+      // Explain the no-op instead of a silent tap: either every slot they're
+      // tagged for is already full, or they're already signed from an
+      // earlier World Cup.
+      if (usedPlayerNames.has(p.name)) {
+        flashMessage(`${p.name} is already in your XI.`);
+      } else {
+        flashMessage(`No open slot for ${p.name} (${p.positions.join(" / ")}) right now.`);
+      }
+      return;
+    }
     if (opts.length === 1) { draftPlayer(p.name, opts[0]); return; }
     setChoosingFor(choosingFor === p.name ? null : p.name);
   };

@@ -63,6 +63,7 @@ interface GameState {
   doSwitch: (kind: "team" | "edition") => void;
   draftPlayer: (playerName: string, slotKey: Position) => void;
   movePlayer: (fromIdx: number, toIdx: number) => void;
+  flashMessage: (msg: string) => void;
   goToStyle: () => void;
   runSimulation: () => void;
   goToKnockout: () => void;
@@ -216,6 +217,11 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
       setTimeout(() => get().drawNext(), 220);
     }
   },
+
+  /** A quick reason for why a tap didn't do anything (e.g. tapping a player
+   *  with no open slot, or one already signed) -- otherwise that tap is
+   *  silent and reads as a bug rather than a full XI. */
+  flashMessage: (msg) => set({ lastMessage: msg }),
 
   /** Move (or swap with) another slot -- lets the XI stay editable after the
    *  initial pick, as long as everyone involved still fits where they land. */
