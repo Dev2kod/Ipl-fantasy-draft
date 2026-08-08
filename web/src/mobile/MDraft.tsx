@@ -8,6 +8,7 @@ import {
 } from "../engine/draft";
 import { teamRatings } from "../engine/ratings";
 import { finishLabel } from "../engine/format";
+import { POSITION_FORMATION } from "../engine/constants";
 import Flag from "../components/Flag";
 import { BigButton, PillButton, BottomBar, Sheet, Meter, LiveMessage } from "./mui";
 import type { Player, Position, SignedPlayer } from "../engine/types";
@@ -50,12 +51,20 @@ export default function MDraft() {
   const teamCands = currentSquad && data ? switchCandidates(data.squads, currentSquad, "team", turnExcludedSquadIds) : [];
   const editionCands = currentSquad && data ? switchCandidates(data.squads, currentSquad, "edition", turnExcludedSquadIds) : [];
 
+  const positionOrder = POSITION_FORMATION.map((s) => s.position);
+  const positionRank = (p: Player): number => {
+    const idx = positionOrder.indexOf(p.positions[0]);
+    return idx === -1 ? positionOrder.length : idx;
+  };
+
   const marketPlayers: Player[] = currentSquad
     ? [...currentSquad.players].sort((a, b) => {
         const ea = optionsFor(a).length > 0 ? 1 : 0;
         const eb = optionsFor(b).length > 0 ? 1 : 0;
         if (ea !== eb) return eb - ea;           // usable players first
-        return b.overall - a.overall;            // then strongest, which is what you scan for
+        const pa = positionRank(a), pb = positionRank(b);
+        if (pa !== pb) return pa - pb;            // grouped by position, not ranked by rating
+        return a.name.localeCompare(b.name);
       })
     : [];
 
