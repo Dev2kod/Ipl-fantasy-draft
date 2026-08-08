@@ -1,12 +1,15 @@
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import clsx from "clsx";
-import { ChevronDown, FileText } from "lucide-react";
+import { ChevronDown, FileText, Shuffle, Users } from "lucide-react";
 import { useGameStore } from "../store/useGameStore";
 import { STYLES } from "../engine/constants";
 import { tossText, GROUP_MATCHES } from "../engine/simulate";
 import { OptionCard, Button } from "./ui";
 import Flag from "./Flag";
 import ScorecardModal from "./ScorecardModal";
+
+type RevealPhase = "teams" | "groups" | "done";
 
 export default function StyleScreen() {
   const {
@@ -16,6 +19,36 @@ export default function StyleScreen() {
 
   const started = simResults.length > 0;
   const groupResults = simResults.slice(0, GROUP_MATCHES);
+
+  // A page reload while already past the draw shouldn't replay it -- only a
+  // fresh "Simulate" click (which flips `started` false -> true this
+  // session) should trigger the reveal sequence.
+  const [phase, setPhase] = useState<RevealPhase>(() => (started ? "done" : "teams"));
+  const [teamsRevealed, setTeamsRevealed] = useState(false);
+  const [groupsRevealed, setGroupsRevealed] = useState(false);
+
+  const allTeams = simMeta?.allGroupStandings.flat() ?? [];
+  const groups = simMeta?.allGroupStandings ?? [];
+
+  useEffect(() => {
+    if (!started || phase !== "teams") return;
+    setTeamsRevealed(false);
+    const id = setTimeout(() => setTeamsRevealed(true), Math.min(allTeams.length * 30, 1200) + 300);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [started, phase]);
+
+  useEffect(() => {
+    if (phase !== "groups") return;
+    setGroupsRevealed(false);
+    const id = setTimeout(() => setGroupsRevealed(true), groups.length * 110 + 500);
+    return () => clearTimeout(id);
+  }, [phase, groups.length]);
+
+  const beginTournament = () => {
+    runSimulation();
+    setPhase("teams");
+  };
 
   return (
     <section className="max-w-4xl mx-auto px-5 py-6">
@@ -28,14 +61,99 @@ export default function StyleScreen() {
             ))}
           </div>
           <div className="text-center mt-7">
-            <Button size="lg" onClick={runSimulation}>
+            <Button size="lg" onClick={beginTournament}>
               Simulate the Cup Run ⚡
             </Button>
           </div>
         </>
       )}
 
-      {started && simMeta && (
+      {started && phase === "teams" && (
+        <>
+          <h2 className="text-center text-2xl font-bold mb-1">Assembling the World Cup</h2>
+          <p className="text-center text-slate-400 text-sm mb-6">
+            32 teams, drawn from every World Cup, 1975–2023 — including yours.
+          </p>
+          <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
+            {allTeams.map((t, i) => (
+              <motion.div
+                key={`${t.code}-${t.name}-${i}`}
+                initial={{ opacity: 0, scale: 0.5, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ delay: Math.min(i * 0.03, 1), type: "spring", stiffness: 260, damping: 18 }}
+                className={clsx(
+                  "rounded-xl border-2 p-2 flex flex-col items-center gap-1 text-center",
+                  t.isYou ? "border-accent bg-accent/10" : "border-line bg-panel"
+                )}
+              >
+                <Flag code={t.code} isYou={t.isYou} className="w-8 h-8 rounded shrink-0 ring-1 ring-black/10 object-cover" />
+                <span className="text-[10px] font-bold leading-tight truncate w-full">{t.isYou ? "You" : t.name}</span>
+              </motion.div>
+            ))}
+          </div>
+          <div className="text-center mt-7">
+            {teamsRevealed ? (
+              <Button size="lg" onClick={() => setPhase("groups")}>
+                <span className="inline-flex items-center gap-1.5"><Shuffle size={16} /> Draw Groups</span>
+              </Button>
+            ) : (
+              <p className="text-slate-400 text-sm animate-pulse">Drawing the field…</p>
+            )}
+          </div>
+        </>
+      )}
+
+      {started && phase === "groups" && (
+        <>
+          <h2 className="text-center text-2xl font-bold mb-1">Drawing the Groups</h2>
+          <p className="text-center text-slate-400 text-sm mb-6">
+            8 groups of 4 — every team plays all 3 group matches, no matter the result.
+          </p>
+          <div className="grid md:grid-cols-2 gap-4">
+            {groups.map((g, gi) => (
+              <motion.div
+                key={gi}
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: gi * 0.11 }}
+                className={clsx(
+                  "rounded-xl border-2 p-3.5",
+                  g.some((t) => t.isYou) ? "border-accent bg-accent/8" : "border-line bg-panel"
+                )}
+              >
+                <h3 className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-slate-400 m-0 mb-2.5">
+                  <Users size={12} /> Group {gi + 1}
+                </h3>
+                <div className="grid grid-cols-4 gap-2">
+                  {g.map((t, ti) => (
+                    <motion.div
+                      key={t.code + ti}
+                      initial={{ opacity: 0, scale: 0.6 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: gi * 0.11 + ti * 0.05 + 0.1 }}
+                      className="flex flex-col items-center gap-1 text-center"
+                    >
+                      <Flag code={t.code} isYou={t.isYou} className="w-8 h-8 rounded shrink-0 ring-1 ring-black/10 object-cover" />
+                      <span className="text-[10px] font-bold leading-tight truncate w-full">{t.isYou ? "You" : t.name}</span>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            ))}
+          </div>
+          <div className="text-center mt-7">
+            {groupsRevealed ? (
+              <Button size="lg" onClick={() => setPhase("done")}>
+                Enter the Tournament →
+              </Button>
+            ) : (
+              <p className="text-slate-400 text-sm animate-pulse">Forming the groups…</p>
+            )}
+          </div>
+        </>
+      )}
+
+      {started && phase === "done" && simMeta && (
         <div className="flex flex-col gap-2.5">
           <div className="text-center mb-2">
             <h3 className="text-xl font-bold m-0 mb-1">Group Stage</h3>
