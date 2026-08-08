@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Home } from "lucide-react";
 import { useGameStore } from "../store/useGameStore";
 import { Button } from "./ui";
+import UiModeToggle from "./UiModeToggle";
 
 export default function TopBar() {
   const { data, screen, mode, difficulty, restart } = useGameStore();
@@ -54,6 +55,7 @@ export default function TopBar() {
               <Home size={14} /> <span className="hidden sm:inline">Home</span>
             </button>
           )}
+          <UiModeToggle />
         </div>
       </header>
 

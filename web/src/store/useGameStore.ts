@@ -14,6 +14,8 @@ import { simulateCupRun, type MatchResult, type SimMeta } from "../engine/simula
 import { fetchGameData } from "../engine/data";
 
 export type Screen = "setup" | "draft" | "style" | "knockout" | "result";
+/** Which presentation layer renders the game. Both drive the same store. */
+export type UiMode = "classic" | "mobile";
 export type KnockoutPhase = "preview" | "simulating" | "result";
 
 interface GameState {
@@ -23,6 +25,7 @@ interface GameState {
 
   // screen
   screen: Screen;
+  uiMode: UiMode;
 
   // setup choices
   mode: Mode;
@@ -51,6 +54,7 @@ interface GameState {
 
   // actions
   loadData: () => Promise<void>;
+  setUiMode: (m: UiMode) => void;
   setMode: (m: Mode) => void;
   setDifficulty: (d: Difficulty) => void;
   setStyle: (s: Style) => void;
@@ -70,6 +74,14 @@ interface GameState {
   openScorecard: (idx: number) => void;
   closeScorecard: () => void;
   restart: () => void;
+}
+
+/** Coarse pointer or a narrow viewport => start in the mobile layout. */
+function defaultUiMode(): UiMode {
+  if (typeof window === "undefined") return "classic";
+  const narrow = window.matchMedia?.("(max-width: 820px)").matches;
+  const touch = window.matchMedia?.("(pointer: coarse)").matches;
+  return narrow || touch ? "mobile" : "classic";
 }
 
 function buildPositionSlots(): Slot[] {
@@ -96,6 +108,9 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
   data: null,
   dataError: null,
   screen: "setup",
+  // First visit picks the layout that fits the device; the toggle overrides
+  // it from then on and the choice is persisted.
+  uiMode: defaultUiMode(),
 
   mode: MODES[0],
   difficulty: DIFFICULTIES[1],
@@ -127,6 +142,7 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
     }
   },
 
+  setUiMode: (m) => set({ uiMode: m }),
   setMode: (m) => set({ mode: m }),
   setDifficulty: (d) => set({ difficulty: d }),
   setStyle: (s) => set({ style: s }),
@@ -288,6 +304,7 @@ export const useGameStore = create<GameState>()(persist((set, get) => ({
   // survive an accidental refresh mid-draft.
   partialize: (s) => ({
     screen: s.screen,
+    uiMode: s.uiMode,
     mode: s.mode, difficulty: s.difficulty, style: s.style,
     slots: s.slots, switchesLeft: s.switchesLeft, currentSquad: s.currentSquad,
     usedPlayerNames: s.usedPlayerNames, turnExcludedSquadIds: s.turnExcludedSquadIds,

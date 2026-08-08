@@ -9,22 +9,26 @@ import StyleScreen from "./components/StyleScreen";
 import ResultScreen from "./components/ResultScreen";
 import BracketScreen from "./components/BracketScreen";
 import Footer from "./components/Footer";
+import MobileApp from "./mobile/MobileApp";
 
 export default function App() {
-  const { data, dataError, loadData, screen } = useGameStore();
+  const { data, dataError, loadData, screen, uiMode } = useGameStore();
   const isFullBleed = screen === "draft" || screen === "knockout";
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
+  if (uiMode === "mobile") return <MobileApp />;
+
   return (
     // The viewport-locked layout is a desktop affordance: on phones there
     // isn't room for two side-by-side scroll panes, so the page scrolls
     // normally instead of squeezing everything into one screen.
     <div className={clsx("flex flex-col", isFullBleed ? "min-h-screen md:h-screen md:overflow-hidden" : "min-h-screen")}>
+      <a href="#main" className="skip-link">Skip to game</a>
       <TopBar />
-      <main className={clsx("flex-1 min-h-0", isFullBleed && "flex flex-col md:overflow-hidden")}>
+      <main id="main" className={clsx("flex-1 min-h-0", isFullBleed && "flex flex-col md:overflow-hidden")}>
         {dataError && (
           <div className="max-w-2xl mx-auto mt-10 p-6 bg-red-50 border border-red-300 text-red-700 rounded-xl text-center">
             Could not load data — is <code>server.py</code> running? ({dataError})
