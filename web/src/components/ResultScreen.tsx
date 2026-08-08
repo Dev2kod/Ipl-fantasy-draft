@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import clsx from "clsx";
-import { FileText, Trophy, Target, ChevronDown } from "lucide-react";
+import { FileText, Trophy, Target, ChevronDown, Share2, Loader2 } from "lucide-react";
 import { useGameStore } from "../store/useGameStore";
 import type { SignedPlayer } from "../engine/types";
 import type { GroupStanding } from "../engine/simulate";
 import { Button, AwardBadge } from "./ui";
-import Flag from "./Flag";
+import Flag, { flagUrlFor } from "./Flag";
 import ScorecardModal from "./ScorecardModal";
+import { renderResultCard, shareOrDownloadImage } from "../engine/shareCard";
 
 function GroupTable({ standings }: { standings: GroupStanding[] }) {
   return (
@@ -46,10 +47,11 @@ function GroupTable({ standings }: { standings: GroupStanding[] }) {
 }
 
 export default function ResultScreen() {
-  const { simResults, simMeta, slots, mode, difficulty, style, restart } = useGameStore();
+  const { data, simResults, simMeta, slots, mode, difficulty, style, restart } = useGameStore();
   const [copied, setCopied] = useState(false);
   const [openIdx, setOpenIdx] = useState<number | null>(null);
   const [otherGroupsOpen, setOtherGroupsOpen] = useState(false);
+  const [sharing, setSharing] = useState(false);
 
   if (!simMeta) return null;
   const won = simMeta.won;
@@ -84,6 +86,27 @@ export default function ResultScreen() {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     });
+  };
+
+  const shareResult = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const blob = await renderResultCard({
+        verdict: verdict.replace("🏆 ", ""), sub, perfect,
+        won, played, groupRank: simMeta.groupRank, overall: simMeta.r.overall,
+        modeName: mode.name, difficultyName: difficulty.name, styleName: style.name,
+        players: players.map((p) => ({ name: p.name, role: p.role, overall: p.overall, srcLabel: p._src, srcCode: p._srcCode })),
+        matches: simResults.map((m) => ({
+          stage: m.stage, ourRuns: m.ourRuns, theirRuns: m.theirRuns, oppName: m.oppName, oppCode: m.oppCode, win: m.win,
+        })),
+        flagUrl: flagUrlFor,
+        countryColour: (code) => data?.countries[code]?.colour,
+      });
+      await shareOrDownloadImage(blob, "unbeaten-xi-result.png", `Unbeaten XI — ${verdict} (${won}/${played})`);
+    } finally {
+      setSharing(false);
+    }
   };
 
   return (
@@ -218,6 +241,12 @@ export default function ResultScreen() {
       <div className="text-center mt-6 flex justify-center gap-3">
         <Button onClick={restart}>Draft again ↻</Button>
         <Button variant="ghost" onClick={copyResult}>{copied ? "Copied ✓" : "Copy result"}</Button>
+        <Button variant="ghost" onClick={shareResult} disabled={sharing}>
+          <span className="inline-flex items-center gap-1.5">
+            {sharing ? <Loader2 size={15} className="animate-spin" /> : <Share2 size={15} />}
+            Share as image
+          </span>
+        </Button>
       </div>
 
       {openIdx !== null && simResults[openIdx] && (

@@ -72,6 +72,11 @@ const YOUR_MARK = (
   </g>
 );
 
+/** Looks up a flag image URL for a country code, for callers outside <Flag> (e.g. canvas rendering). */
+export function flagUrlFor(code?: string | null): string | undefined {
+  return code ? FLAG_URL[code as FlagCode] : undefined;
+}
+
 export interface FlagProps {
   /** Country code from the dataset (IND, AUS, WI, …). */
   code?: string | null;
