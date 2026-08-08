@@ -4,6 +4,7 @@ import { Home } from "lucide-react";
 import { useGameStore } from "../store/useGameStore";
 import { Button } from "./ui";
 import UiModeToggle from "./UiModeToggle";
+import Logo from "./Logo";
 
 export default function TopBar() {
   const { data, screen, mode, difficulty, restart } = useGameStore();
@@ -26,19 +27,14 @@ export default function TopBar() {
           type="button"
           onClick={inGame ? goHome : undefined}
           disabled={!inGame}
-          aria-label={inGame ? "Leave this tournament and return to the home screen" : "7-0 World Cup Draft"}
+          aria-label={inGame ? "Leave this tournament and return to the home screen" : "Unbeaten XI"}
           title={inGame ? "Back to home (ends this tournament)" : undefined}
           className={[
-            "group flex items-baseline gap-3 bg-transparent border-none p-0 text-left",
+            "bg-transparent border-none p-0 text-left transition-transform hover:scale-105",
             inGame ? "cursor-pointer" : "cursor-default",
           ].join(" ")}
         >
-          <span className="text-3xl font-black tracking-tight text-accent transition-transform group-hover:scale-105">
-            7<span className="text-slate-400">–</span>0
-          </span>
-          <span className="hidden sm:inline text-[11px] tracking-[3px] text-slate-400 font-bold">
-            WORLD CUP DRAFT · 1975–2023
-          </span>
+          <Logo tagline="WORLD CUP DRAFT · 1975–2023" />
         </button>
 
         <div className="flex items-center gap-3 shrink-0">

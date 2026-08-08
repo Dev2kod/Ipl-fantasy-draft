@@ -1,5 +1,5 @@
 """
-build_db.py -- Builds worldcup.db (SQLite) for the "7-0 World Cup" draft game.
+build_db.py -- Builds worldcup.db (SQLite) for "Unbeaten XI", the cricket draft game.
 
 Data source: the JSON files in ./data_wc/ (one per edition, wc_YYYY.json), gathered
 from the web (Wikipedia / ESPNcricinfo). Each file lists every team that played that

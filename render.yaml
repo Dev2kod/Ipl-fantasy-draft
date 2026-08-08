@@ -7,7 +7,7 @@
 # request. Fine for a hobby/demo link; upgrade the plan for always-on.
 services:
   - type: web
-    name: seven-nil-world-cup
+    name: unbeaten-xi
     runtime: docker
     plan: free
     dockerfilePath: ./Dockerfile

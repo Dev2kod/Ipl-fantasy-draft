@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Home } from "lucide-react";
 import { useGameStore } from "../store/useGameStore";
 import UiModeToggle from "../components/UiModeToggle";
+import Logo from "../components/Logo";
 import { BigButton, Sheet } from "./mui";
 import MSetup from "./MSetup";
 import MDraft from "./MDraft";
@@ -38,13 +39,10 @@ export default function MobileApp() {
           type="button"
           onClick={inGame ? leave : undefined}
           disabled={!inGame}
-          aria-label={inGame ? "Leave this tournament and return home" : "7-0 World Cup Draft"}
-          className="flex items-baseline gap-2 bg-transparent border-none p-0 min-h-[44px]"
+          aria-label={inGame ? "Leave this tournament and return home" : "Unbeaten XI"}
+          className="flex items-center bg-transparent border-none p-0 min-h-[44px]"
         >
-          <span className="text-[26px] font-black tracking-tight text-accent leading-none">
-            7<span className="text-slate-400">–</span>0
-          </span>
-          <span className="text-[9px] tracking-[2px] text-slate-400 font-bold">WORLD CUP</span>
+          <Logo compact />
         </button>
 
         <span className="grow" />

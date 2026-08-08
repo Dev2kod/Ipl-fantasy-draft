@@ -1,4 +1,4 @@
-# 7-0 World Cup — Draft Your All-Time XI (1975–2023)
+# Unbeaten XI — Draft Your All-Time World Cup XI (1975–2023)
 
 A cricket adaptation of the viral football game **[7a0 / Sete a Zero](https://7a0.org/en)**
 (a World Cup draft simulator). You draw **national squads from every ODI Cricket
@@ -17,7 +17,7 @@ Front-end: a full **React + TypeScript** app (Tailwind, Framer Motion, Zustand).
 
 ## How the game maps to 7a0
 
-| 7a0 (football)                         | 7-0 World Cup (this game)                    |
+| 7a0 (football)                         | Unbeaten XI (this game)                      |
 |----------------------------------------|----------------------------------------------|
 | Draw a nation + World Cup year         | Draw a cricket nation + World Cup year (unchanged idea — the original game's own theme!) |
 | That squad is your market              | Same — pick **one** player from it           |
@@ -60,8 +60,8 @@ so it packages into one small Docker image — no database service, no
 build step at runtime.
 
 ```bash
-docker build -t seven-nil .
-docker run -p 8000:8000 seven-nil
+docker build -t unbeaten-xi .
+docker run -p 8000:8000 unbeaten-xi
 # open http://localhost:8000
 ```
 

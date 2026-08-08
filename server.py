@@ -1,5 +1,5 @@
 """
-server.py -- zero-dependency web server for the "7-0 World Cup" draft game.
+server.py -- zero-dependency web server for "Unbeaten XI", the cricket draft game.
 
 Uses only the Python standard library (http.server + sqlite3) to serve the
 built React front-end (web/dist) and the JSON data API, so running the game
@@ -140,7 +140,7 @@ DATASET = _Dataset()
 
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"  # keep-alive; Content-Length is always set
-    server_version = "SevenNil"
+    server_version = "UnbeatenXI"
     sys_version = ""
 
     def _accepts_gzip(self):
@@ -230,7 +230,7 @@ def main():
     server = ThreadingHTTPServer((HOST, PORT), Handler)
     shown_host = "localhost" if HOST in ("127.0.0.1", "0.0.0.0") else HOST
     print("=" * 52)
-    print("  7-0 World Cup  --  Draft your all-time XI")
+    print("  Unbeaten XI  --  Draft your all-time World Cup XI")
     print(f"  Serving at  http://{shown_host}:{PORT}")
     print(f"  Dataset     {DATASET.n_squads} squads / {DATASET.n_players} players"
           f"  ({len(DATASET.raw) // 1024} KB, {len(DATASET.gz) // 1024} KB gzipped)")

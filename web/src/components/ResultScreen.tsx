@@ -77,7 +77,7 @@ export default function ResultScreen() {
 
   const copyResult = () => {
     const lines = [
-      `7-0 World Cup — ${verdict} (${won}/${played})`,
+      `Unbeaten XI — ${verdict} (${won}/${played})`,
       ...players.map((p) => `${p.role.padEnd(4)} ${p.name} — ${p._src} (${p.overall})`),
     ];
     navigator.clipboard.writeText(lines.join("\n")).then(() => {
