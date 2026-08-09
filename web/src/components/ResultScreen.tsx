@@ -4,7 +4,7 @@ import clsx from "clsx";
 import { FileText, Trophy, Target, ChevronDown, Share2, Loader2, Download, X } from "lucide-react";
 import { useGameStore } from "../store/useGameStore";
 import type { SignedPlayer } from "../engine/types";
-import type { GroupStanding } from "../engine/simulate";
+import type { GroupStanding, LeaderboardRow } from "../engine/simulate";
 import { Button, AwardBadge } from "./ui";
 import Flag, { flagUrlFor } from "./Flag";
 import ScorecardModal from "./ScorecardModal";
@@ -53,6 +53,7 @@ export default function ResultScreen() {
   const [otherGroupsOpen, setOtherGroupsOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [preview, setPreview] = useState<{ blob: Blob; url: string } | null>(null);
+  const [statPlayer, setStatPlayer] = useState<{ row: LeaderboardRow; unit: string } | null>(null);
 
   if (!simMeta) return null;
   const won = simMeta.won;
@@ -197,12 +198,19 @@ export default function ResultScreen() {
           </h3>
           <ol className="list-none m-0 p-0 flex flex-col gap-1.5">
             {simMeta.topRuns.map((row, i) => (
-              <li key={row.name} className="flex items-center gap-2.5 bg-panel border border-line rounded-lg px-3 py-1.5 text-[13px]">
-                <span className="w-5 text-slate-400 font-bold">{i + 1}</span>
-                <span className="flex-1 min-w-0 truncate">
-                  {row.name} <span className="text-slate-400 text-[11.5px]"><Flag code={row.teamCode} isYou={row.team === "You"} /> {row.team}</span>
-                </span>
-                <span className="font-black text-accent">{row.value}</span>
+              <li key={row.name}>
+                <button
+                  type="button"
+                  onClick={() => setStatPlayer({ row, unit: "runs" })}
+                  aria-label={`${row.name}, ${row.team} — click to see every match this total came from`}
+                  className="w-full flex items-center gap-2.5 bg-panel border border-line rounded-lg px-3 py-1.5 text-[13px] text-left cursor-pointer hover:border-accent2 transition-colors"
+                >
+                  <span className="w-5 text-slate-400 font-bold">{i + 1}</span>
+                  <span className="flex-1 min-w-0 truncate">
+                    {row.name} <span className="text-slate-400 text-[11.5px]"><Flag code={row.teamCode} isYou={row.team === "You"} /> {row.team}</span>
+                  </span>
+                  <span className="font-black text-accent">{row.value}</span>
+                </button>
               </li>
             ))}
           </ol>
@@ -213,12 +221,19 @@ export default function ResultScreen() {
           </h3>
           <ol className="list-none m-0 p-0 flex flex-col gap-1.5">
             {simMeta.topWickets.map((row, i) => (
-              <li key={row.name} className="flex items-center gap-2.5 bg-panel border border-line rounded-lg px-3 py-1.5 text-[13px]">
-                <span className="w-5 text-slate-400 font-bold">{i + 1}</span>
-                <span className="flex-1 min-w-0 truncate">
-                  {row.name} <span className="text-slate-400 text-[11.5px]"><Flag code={row.teamCode} isYou={row.team === "You"} /> {row.team}</span>
-                </span>
-                <span className="font-black text-accent">{row.value}</span>
+              <li key={row.name}>
+                <button
+                  type="button"
+                  onClick={() => setStatPlayer({ row, unit: "wickets" })}
+                  aria-label={`${row.name}, ${row.team} — click to see every match this total came from`}
+                  className="w-full flex items-center gap-2.5 bg-panel border border-line rounded-lg px-3 py-1.5 text-[13px] text-left cursor-pointer hover:border-accent2 transition-colors"
+                >
+                  <span className="w-5 text-slate-400 font-bold">{i + 1}</span>
+                  <span className="flex-1 min-w-0 truncate">
+                    {row.name} <span className="text-slate-400 text-[11.5px]"><Flag code={row.teamCode} isYou={row.team === "You"} /> {row.team}</span>
+                  </span>
+                  <span className="font-black text-accent">{row.value}</span>
+                </button>
               </li>
             ))}
           </ol>
@@ -302,6 +317,49 @@ export default function ResultScreen() {
                   <span className="inline-flex items-center gap-1.5"><Download size={15} /> Save image</span>
                 </Button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {statPlayer && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setStatPlayer(null)}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-panel border border-line rounded-2xl p-5 max-w-md w-full max-h-[85vh] overflow-y-auto scrollbar-thin"
+            >
+              <div className="flex justify-between items-start mb-1">
+                <div>
+                  <h3 className="text-lg font-bold m-0">{statPlayer.row.name}</h3>
+                  <p className="text-slate-400 text-[13px] m-0 mt-0.5">
+                    {statPlayer.row.team === "You" ? "Your XI" : statPlayer.row.team} · {statPlayer.row.value} {statPlayer.unit} total
+                  </p>
+                </div>
+                <button onClick={() => setStatPlayer(null)} className="bg-transparent border-none text-slate-400 hover:text-ink cursor-pointer p-1">
+                  <X size={20} />
+                </button>
+              </div>
+              <ul className="list-none m-0 p-0 mt-3 flex flex-col gap-1.5">
+                {statPlayer.row.contributions.map((c, i) => (
+                  <li key={i} className="flex items-center gap-2.5 bg-panel2 border border-line rounded-lg px-3 py-2 text-[13px]">
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-[10.5px] font-black uppercase tracking-wide text-slate-400">{c.stage}</span>
+                      <span className="block truncate">vs {c.opponent}</span>
+                    </span>
+                    <span className="font-black text-accent shrink-0">{c.value}</span>
+                  </li>
+                ))}
+              </ul>
             </motion.div>
           </motion.div>
         )}

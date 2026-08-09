@@ -67,11 +67,20 @@ export interface GroupStanding {
   points: number;
 }
 
+export interface LeaderboardContribution {
+  stage: string;
+  opponent: string;
+  value: number;
+}
+
 export interface LeaderboardRow {
   name: string;
   team: string;
   teamCode: string;
   value: number;
+  /** Every match this total is built from -- what popped up the "how was
+   *  this built?" breakdown when a leaderboard row is tapped. */
+  contributions: LeaderboardContribution[];
 }
 
 /** A team reference for bracket display -- enough to render a badge/flag. */
@@ -354,24 +363,29 @@ function tallyFullMatch(
   wktsMap: Map<string, LeaderboardRow>,
   innings1: Innings,
   innings2: Innings,
-  codeOf: (teamName: string) => string
+  codeOf: (teamName: string) => string,
+  stage: string
 ) {
   for (const inn of [innings1, innings2]) {
     const battingCode = codeOf(inn.team);
+    const bowlingTeam = inn.team === innings1.team ? innings2.team : innings1.team;
     for (const b of inn.batters) {
-      const row = runsMap.get(b.name) ?? { name: b.name, team: inn.team, teamCode: battingCode, value: 0 };
+      if (b.runs <= 0) continue;
+      const row = runsMap.get(b.name) ?? { name: b.name, team: inn.team, teamCode: battingCode, value: 0, contributions: [] };
       row.value += b.runs;
       row.team = inn.team;
       row.teamCode = battingCode;
+      row.contributions.push({ stage, opponent: bowlingTeam, value: b.runs });
       runsMap.set(b.name, row);
     }
-    const bowlingTeam = inn.team === innings1.team ? innings2.team : innings1.team;
     const bowlingCode = codeOf(bowlingTeam);
     for (const bw of inn.bowlers) {
-      const row = wktsMap.get(bw.name) ?? { name: bw.name, team: bowlingTeam, teamCode: bowlingCode, value: 0 };
+      if (bw.wickets <= 0) continue;
+      const row = wktsMap.get(bw.name) ?? { name: bw.name, team: bowlingTeam, teamCode: bowlingCode, value: 0, contributions: [] };
       row.value += bw.wickets;
       row.team = bowlingTeam;
       row.teamCode = bowlingCode;
+      row.contributions.push({ stage, opponent: inn.team, value: bw.wickets });
       wktsMap.set(bw.name, row);
     }
   }
@@ -432,7 +446,8 @@ function playOutScore(strengthA: number, strengthB: number, variance: number): {
  */
 function simulateLite(
   a: TeamEntry, b: TeamEntry,
-  runsMap: Map<string, LeaderboardRow>, wktsMap: Map<string, LeaderboardRow>
+  runsMap: Map<string, LeaderboardRow>, wktsMap: Map<string, LeaderboardRow>,
+  stage: string
 ): { aWin: boolean; runsA: number; runsB: number } {
   const { aWin, runsA, runsB } = playOutScore(a.strength, b.strength, 1.0);
 
@@ -440,7 +455,7 @@ function simulateLite(
   const { innings1, innings2 } = aBatsFirst
     ? buildMatchInnings(a.name, a.battingNames, a.bowlingNames, runsA, b.name, b.battingNames, b.bowlingNames, runsB)
     : buildMatchInnings(b.name, b.battingNames, b.bowlingNames, runsB, a.name, a.battingNames, a.bowlingNames, runsA);
-  tallyFullMatch(runsMap, wktsMap, innings1, innings2, (name) => (name === a.name ? a.code : b.code));
+  tallyFullMatch(runsMap, wktsMap, innings1, innings2, (name) => (name === a.name ? a.code : b.code), stage);
 
   return { aWin, runsA, runsB };
 }
@@ -515,7 +530,7 @@ function simulateDetailed(
   // The highlight line only needs your own top performer, but the
   // leaderboard tally is a full aggregate across every batter/bowler on
   // both sides -- same real scorecard, just credited to everyone in it.
-  tallyFullMatch(runsMap, wktsMap, innings1, innings2, (name) => (name === "You" ? you.code : opp.code));
+  tallyFullMatch(runsMap, wktsMap, innings1, innings2, (name) => (name === "You" ? you.code : opp.code), stage);
 
   let line: string;
   if (win) {
@@ -593,7 +608,9 @@ function playGroup(
         applyResult(rows.get(you)!, m.win, m.ourRuns, m.theirRuns);
         applyResult(rows.get(opp)!, !m.win, m.theirRuns, m.ourRuns);
       } else {
-        const { aWin, runsA, runsB } = simulateLite(a, b, runsMap, wktsMap);
+        // Background matches between two AI teams within the same group
+        // aren't individually numbered the way "your" 3 group games are.
+        const { aWin, runsA, runsB } = simulateLite(a, b, runsMap, wktsMap, "Group Stage");
         applyResult(rows.get(a)!, aWin, runsA, runsB);
         applyResult(rows.get(b)!, !aWin, runsB, runsA);
       }
@@ -654,7 +671,7 @@ function runKnockoutBracket(
           winnerIsA: a.isYou ? m.win : !m.win,
         });
       } else {
-        const { aWin, runsA, runsB } = simulateLite(a, b, runsMap, wktsMap);
+        const { aWin, runsA, runsB } = simulateLite(a, b, runsMap, wktsMap, label);
         winners.push(aWin ? a : b);
         roundMatches.push({
           round: label, teamA: bracketTeamRef(a), teamB: bracketTeamRef(b),

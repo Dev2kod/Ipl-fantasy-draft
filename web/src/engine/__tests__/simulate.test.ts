@@ -361,6 +361,21 @@ describe("tournament leaderboard", () => {
       for (const row of yours) expect(row.teamCode).toBe("");
     }
   });
+
+  it("breaks every total down into the real matches it came from", () => {
+    for (const { meta } of RUNS) {
+      for (const row of [...meta.topRuns, ...meta.topWickets]) {
+        expect(row.contributions.length).toBeGreaterThan(0);
+        const sum = row.contributions.reduce((a, c) => a + c.value, 0);
+        expect(sum).toBe(row.value);
+        for (const c of row.contributions) {
+          expect(c.stage).toBeTruthy();
+          expect(c.opponent).toBeTruthy();
+          expect(c.value).toBeGreaterThan(0);
+        }
+      }
+    }
+  });
 });
 
 describe("opponents", () => {

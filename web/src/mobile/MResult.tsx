@@ -48,17 +48,28 @@ function Standings({ rows }: { rows: GroupStanding[] }) {
   );
 }
 
-function Board({ title, icon, rows }: { title: string; icon: React.ReactNode; rows: LeaderboardRow[] }) {
+function Board({
+  title, icon, rows, onSelect,
+}: {
+  title: string; icon: React.ReactNode; rows: LeaderboardRow[]; onSelect: (row: LeaderboardRow) => void;
+}) {
   return (
     <section aria-label={title}>
       <h3 className="flex items-center justify-center gap-1.5 text-[13.5px] font-bold mb-2">{icon} {title}</h3>
       <ol className="list-none m-0 p-0 flex flex-col gap-1.5">
         {rows.slice(0, 5).map((row, i) => (
-          <li key={row.name} className="flex items-center gap-2 bg-panel border border-line rounded-xl px-3 py-2 text-[12.5px]">
-            <span className="w-4 text-slate-400 font-bold tabular-nums">{i + 1}</span>
-            <Flag code={row.teamCode} isYou={row.team === "You"} className="w-4 h-4 rounded-[2px] shrink-0 ring-1 ring-black/10 object-cover" />
-            <span className="grow min-w-0 truncate">{row.name}</span>
-            <b className="text-accent tabular-nums">{row.value}</b>
+          <li key={row.name}>
+            <button
+              type="button"
+              onClick={() => onSelect(row)}
+              aria-label={`${row.name}, ${row.team} — tap to see every match this total came from`}
+              className="w-full text-left flex items-center gap-2 bg-panel border border-line rounded-xl px-3 py-2 text-[12.5px] min-h-[44px] active:border-accent2"
+            >
+              <span className="w-4 text-slate-400 font-bold tabular-nums">{i + 1}</span>
+              <Flag code={row.teamCode} isYou={row.team === "You"} className="w-4 h-4 rounded-[2px] shrink-0 ring-1 ring-black/10 object-cover" />
+              <span className="grow min-w-0 truncate">{row.name}</span>
+              <b className="text-accent tabular-nums">{row.value}</b>
+            </button>
           </li>
         ))}
       </ol>
@@ -73,6 +84,7 @@ export default function MResult() {
   const [othersOpen, setOthersOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [preview, setPreview] = useState<{ blob: Blob; url: string } | null>(null);
+  const [statPlayer, setStatPlayer] = useState<{ row: LeaderboardRow; unit: string } | null>(null);
 
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview.url); }, [preview]);
 
@@ -208,8 +220,18 @@ export default function MResult() {
         </div>
 
         <div className="mt-5 grid grid-cols-1 gap-4">
-          <Board title="Most Runs" icon={<Target size={15} className="text-accent2" aria-hidden="true" />} rows={simMeta.topRuns} />
-          <Board title="Most Wickets" icon={<Trophy size={15} className="text-accent2" aria-hidden="true" />} rows={simMeta.topWickets} />
+          <Board
+            title="Most Runs"
+            icon={<Target size={15} className="text-accent2" aria-hidden="true" />}
+            rows={simMeta.topRuns}
+            onSelect={(row) => setStatPlayer({ row, unit: "runs" })}
+          />
+          <Board
+            title="Most Wickets"
+            icon={<Trophy size={15} className="text-accent2" aria-hidden="true" />}
+            rows={simMeta.topWickets}
+            onSelect={(row) => setStatPlayer({ row, unit: "wickets" })}
+          />
         </div>
         <p className="text-[11px] text-slate-400 text-center mt-2">
           Across all 32 teams and every match played.
@@ -291,6 +313,31 @@ export default function MResult() {
       {openIdx !== null && simResults[openIdx] && (
         <ScorecardModal match={simResults[openIdx]} onClose={() => setOpenIdx(null)} />
       )}
+
+      <Sheet
+        open={!!statPlayer}
+        onClose={() => setStatPlayer(null)}
+        title={statPlayer ? `${statPlayer.row.name} — ${statPlayer.row.value} ${statPlayer.unit}` : ""}
+      >
+        {statPlayer && (
+          <>
+            <p className="text-[12.5px] text-slate-400 mt-0 mb-3">
+              {statPlayer.row.team === "You" ? "Your XI" : statPlayer.row.team} · every match this total came from.
+            </p>
+            <ul className="list-none m-0 p-0 flex flex-col gap-1.5">
+              {statPlayer.row.contributions.map((c, i) => (
+                <li key={i} className="flex items-center gap-2 bg-panel border border-line rounded-xl px-3 py-2 text-[13px]">
+                  <span className="grow min-w-0">
+                    <span className="block text-[10.5px] font-black uppercase tracking-wider text-slate-400">{c.stage}</span>
+                    <span className="block truncate">vs {c.opponent}</span>
+                  </span>
+                  <b className="text-accent tabular-nums shrink-0">{c.value}</b>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </Sheet>
     </div>
   );
 }
