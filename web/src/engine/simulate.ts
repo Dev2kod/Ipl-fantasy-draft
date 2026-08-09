@@ -358,6 +358,16 @@ function buildMatchInnings(
  *  Most Runs/Most Wickets reflects the entire tournament the way a real
  *  World Cup's tables do, the same way a highlight or scorecard is always
  *  read off the real generated figures rather than invented separately. */
+/** Keys a leaderboard row by name WITHIN a specific squad-edition, not name
+ *  alone -- the same real player's name can legitimately turn up on two
+ *  different squad-editions in the same 32-team field (e.g. "India 1983"
+ *  and "India 1996" can both be drawn as separate opponent teams), and
+ *  those are different tournament entries that just happen to share a
+ *  historical name, not the same team's stats spread across two rows. */
+function leaderboardKey(team: string, name: string): string {
+  return `${team} ${name}`;
+}
+
 function tallyFullMatch(
   runsMap: Map<string, LeaderboardRow>,
   wktsMap: Map<string, LeaderboardRow>,
@@ -371,22 +381,20 @@ function tallyFullMatch(
     const bowlingTeam = inn.team === innings1.team ? innings2.team : innings1.team;
     for (const b of inn.batters) {
       if (b.runs <= 0) continue;
-      const row = runsMap.get(b.name) ?? { name: b.name, team: inn.team, teamCode: battingCode, value: 0, contributions: [] };
+      const key = leaderboardKey(inn.team, b.name);
+      const row = runsMap.get(key) ?? { name: b.name, team: inn.team, teamCode: battingCode, value: 0, contributions: [] };
       row.value += b.runs;
-      row.team = inn.team;
-      row.teamCode = battingCode;
       row.contributions.push({ stage, opponent: bowlingTeam, value: b.runs });
-      runsMap.set(b.name, row);
+      runsMap.set(key, row);
     }
     const bowlingCode = codeOf(bowlingTeam);
     for (const bw of inn.bowlers) {
       if (bw.wickets <= 0) continue;
-      const row = wktsMap.get(bw.name) ?? { name: bw.name, team: bowlingTeam, teamCode: bowlingCode, value: 0, contributions: [] };
+      const key = leaderboardKey(bowlingTeam, bw.name);
+      const row = wktsMap.get(key) ?? { name: bw.name, team: bowlingTeam, teamCode: bowlingCode, value: 0, contributions: [] };
       row.value += bw.wickets;
-      row.team = bowlingTeam;
-      row.teamCode = bowlingCode;
       row.contributions.push({ stage, opponent: inn.team, value: bw.wickets });
-      wktsMap.set(bw.name, row);
+      wktsMap.set(key, row);
     }
   }
 }

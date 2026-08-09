@@ -342,11 +342,16 @@ describe("tournament leaderboard", () => {
     }
   });
 
-  it("lists each player once, with a team attached", () => {
+  it("lists each squad-edition's player once, with a team attached", () => {
+    // Uniqueness is by (team, name), not name alone -- the same historical
+    // name can legitimately appear on two different squad-editions drawn
+    // into the same 32-team field (e.g. India 1983 and India 1996 both
+    // getting drawn as separate opponents), and those are different
+    // tournament entries, not the same row split in two.
     for (const { meta } of RUNS) {
       for (const board of [meta.topRuns, meta.topWickets]) {
-        const names = board.map((r) => r.name);
-        expect(new Set(names).size).toBe(names.length);
+        const keys = board.map((r) => `${r.team}|${r.name}`);
+        expect(new Set(keys).size).toBe(keys.length);
         for (const row of board) {
           expect(row.team).toBeTruthy();
           expect(row.value).toBeGreaterThan(0);
@@ -359,6 +364,14 @@ describe("tournament leaderboard", () => {
     for (const { meta } of RUNS) {
       const yours = [...meta.topRuns, ...meta.topWickets].filter((r) => r.team === "You");
       for (const row of yours) expect(row.teamCode).toBe("");
+    }
+  });
+
+  it("never credits more contributions to one row than a single team could ever play (max 7: 3 group + 4 knockout)", () => {
+    for (const { meta } of RUNS) {
+      for (const row of [...meta.topRuns, ...meta.topWickets]) {
+        expect(row.contributions.length).toBeLessThanOrEqual(7);
+      }
     }
   });
 
