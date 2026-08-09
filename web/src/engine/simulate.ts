@@ -682,17 +682,29 @@ export function simulateCupRun(
 
   const you = youEntry(players, teamStrength);
 
+  // A drafted player can only ever be "You" this tournament -- excluding just
+  // the exact squad-editions you drafted FROM (ownedSquadIds) isn't enough,
+  // since the same real player often appears in more than one World Cup
+  // squad (e.g. signing Sachin Tendulkar from India 1996 still leaves India
+  // 1999 -- also Tendulkar -- free to be drawn as an opponent elsewhere).
+  // The leaderboard keys by player name across the whole tournament, so
+  // that reappearance would silently merge his stats there into "You"'s
+  // row. Exclude every squad containing any drafted player's name, not
+  // just the squads themselves, so nobody you signed can turn up twice.
+  const draftedNames = new Set(players.map((p) => p.name));
+  const eligibleSquads = allSquads.filter((sq) => !sq.players.some((p) => draftedNames.has(p.name)));
+
   // Group 0 is yours (you + 3 opponents); 7 more groups of 4 fill out the
   // rest of the 32-team World Cup, all drawn with the same difficulty
   // weighting so the whole field -- not just your group -- matches the
   // chosen difficulty.
   const usedIds = new Set(ownedSquadIds);
-  const group0Squads = drawSquadPool(TEAM_PER_GROUP - 1, allSquads, usedIds, diff.opp, diff.spread);
+  const group0Squads = drawSquadPool(TEAM_PER_GROUP - 1, eligibleSquads, usedIds, diff.opp, diff.spread);
   group0Squads.forEach((sq) => usedIds.add(sq.id));
   const groups: TeamEntry[][] = [[you, ...group0Squads.map(squadEntry)]];
 
   for (let g = 1; g < GROUPS_TOTAL; g++) {
-    const squads = drawSquadPool(TEAM_PER_GROUP, allSquads, usedIds, diff.opp, diff.spread);
+    const squads = drawSquadPool(TEAM_PER_GROUP, eligibleSquads, usedIds, diff.opp, diff.spread);
     squads.forEach((sq) => usedIds.add(sq.id));
     groups.push(squads.map(squadEntry));
   }

@@ -385,6 +385,26 @@ describe("opponents", () => {
       expect(m.oppCode).toBeTruthy();
     }
   });
+
+  it("never draws ANY squad containing a drafted player, even from a different World Cup edition", () => {
+    const squadByName = new Map(DATA.squads.map((s) => [`${s.country_name} ${s.edition}`, s]));
+    for (const seed of SEEDS.slice(0, 20)) {
+      withSeed(seed, () => {
+        const players = draftXI(makeRng(seed))!;
+        const draftedNames = new Set(players.map((p) => p.name));
+        const owned = new Set(players.map((p) => p._srcSquadId));
+        const { meta } = simulateCupRun(players, DIFFICULTIES[1], STYLES[1], DATA.squads, owned);
+        for (const row of meta.allGroupStandings.flat()) {
+          if (row.isYou) continue;
+          const squad = squadByName.get(row.name);
+          expect(squad, `${row.name} not found in dataset`).toBeTruthy();
+          for (const p of squad!.players) {
+            expect(draftedNames, `${p.name} (drafted by you) reappeared via ${row.name}`).not.toContain(p.name);
+          }
+        }
+      });
+    }
+  });
 });
 
 describe("tossText", () => {
