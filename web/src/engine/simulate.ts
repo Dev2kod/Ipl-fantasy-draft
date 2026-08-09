@@ -302,13 +302,6 @@ function bowlingOrderOf(players: Player[]): string[] {
   return pool.map((p) => p.name);
 }
 
-interface RosterPlayer {
-  name: string;
-  bat: number;
-  bowl: number;
-  role: string;
-}
-
 /** One team in the tournament -- either "You" (your drafted XI) or a real
  *  historical squad from the dataset, rated from its own players' ratings. */
 interface TeamEntry {
@@ -319,18 +312,12 @@ interface TeamEntry {
   strength: number;
   battingNames: string[];
   bowlingNames: string[];
-  roster: RosterPlayer[]; // every team's full roster -- used for tournament-wide leaderboard stats
-}
-
-function toRoster(players: Player[]): RosterPlayer[] {
-  return players.map((p) => ({ name: p.name, bat: p.bat, bowl: p.bowl, role: p.role }));
 }
 
 function youEntry(players: SignedPlayer[], strength: number): TeamEntry {
   return {
     name: "You", colour: "#ff7a1a", code: "", isYou: true, strength,
     battingNames: battingOrderOf(players), bowlingNames: bowlingOrderOf(players),
-    roster: toRoster(players),
   };
 }
 
@@ -339,74 +326,54 @@ function squadEntry(squad: Squad): TeamEntry {
     name: `${squad.country_name} ${squad.edition}`, colour: squad.colour, code: squad.country, isYou: false,
     strength: teamRatings(squad.players).overall,
     battingNames: battingOrderOf(squad.players), bowlingNames: bowlingOrderOf(squad.players),
-    roster: toRoster(squad.players),
   };
 }
 
-/**
- * One standout batting + bowling performance for a team in a single match --
- * generated for EVERY match in the whole 32-team tournament (not just yours)
- * so the tournament stats leaderboard reflects the entire field, the way a
- * real World Cup's Most Runs / Most Wickets tables do.
- */
-function fabricatePerformance(roster: RosterPlayer[], runsScored: number) {
-  const batPool = roster.filter((p) => p.role !== "BOWL");
-  const bowlPool = roster.filter((p) => p.role === "BOWL" || p.role === "ALL");
-  const batter = weightedPick(batPool.length ? batPool : roster, (x) => x.bat);
-  const bowler = weightedPick(bowlPool.length ? bowlPool : roster, (x) => x.bowl);
-  const runs = Math.max(10, Math.round(runsScored * (0.15 + Math.random() * 0.25)));
-  const wickets = Math.min(5, 1 + rint(3));
-  return { batter: { name: batter.name, runs }, bowler: { name: bowler.name, wickets } };
+/** Builds both innings of a completed match given who batted first/second
+ *  and each side's already-decided final score -- shared by "your" detailed
+ *  matches and the full tournament-wide leaderboard tally below. */
+function buildMatchInnings(
+  firstName: string, firstBatNames: string[], firstBowlNames: string[], firstRuns: number,
+  secondName: string, secondBatNames: string[], secondBowlNames: string[], secondRuns: number
+): { innings1: Innings; innings2: Innings } {
+  const chaseWon = secondRuns > firstRuns;
+  const innings1 = makeInnings(firstName, firstRuns, false, firstBatNames, secondBowlNames);
+  const innings2 = makeInnings(secondName, secondRuns, chaseWon, secondBatNames, firstBowlNames);
+  return { innings1, innings2 };
 }
 
-/** Tally one team's standout performance from a match into the running
- *  tournament-wide leaderboard maps. Used only for lite (AI-vs-AI) matches,
- *  where no full scorecard is ever generated or shown, so a fabricated
- *  standout performance can't disagree with anything on screen. */
-function tally(
+/** Adds every batter's runs and every bowler's wickets from both innings of
+ *  a completed match into the tournament-wide leaderboard maps -- a true
+ *  aggregate across every player who actually played, not one fabricated
+ *  standout per side. Used for every match in the whole 32-team field, so
+ *  Most Runs/Most Wickets reflects the entire tournament the way a real
+ *  World Cup's tables do, the same way a highlight or scorecard is always
+ *  read off the real generated figures rather than invented separately. */
+function tallyFullMatch(
   runsMap: Map<string, LeaderboardRow>,
   wktsMap: Map<string, LeaderboardRow>,
-  entry: TeamEntry,
-  runsScored: number
+  innings1: Innings,
+  innings2: Innings,
+  codeOf: (teamName: string) => string
 ) {
-  const perf = fabricatePerformance(entry.roster, runsScored);
-  const rRow = runsMap.get(perf.batter.name) ?? { name: perf.batter.name, team: entry.name, teamCode: entry.code, value: 0 };
-  rRow.value += perf.batter.runs;
-  rRow.team = entry.name;
-  rRow.teamCode = entry.code;
-  runsMap.set(perf.batter.name, rRow);
-
-  const wRow = wktsMap.get(perf.bowler.name) ?? { name: perf.bowler.name, team: entry.name, teamCode: entry.code, value: 0 };
-  wRow.value += perf.bowler.wickets;
-  wRow.team = entry.name;
-  wRow.teamCode = entry.code;
-  wktsMap.set(perf.bowler.name, wRow);
-}
-
-/** Tally a team's ACTUAL top scorer/wicket-taker from a real generated
- *  innings pair into the leaderboard -- used for every detailed ("You")
- *  match, so the leaderboard can never disagree with the real scorecard. */
-function tallyReal(
-  runsMap: Map<string, LeaderboardRow>,
-  wktsMap: Map<string, LeaderboardRow>,
-  entryName: string,
-  entryCode: string,
-  topBat: BatterLine | null,
-  topBowl: BowlerLine | null
-) {
-  if (topBat) {
-    const row = runsMap.get(topBat.name) ?? { name: topBat.name, team: entryName, teamCode: entryCode, value: 0 };
-    row.value += topBat.runs;
-    row.team = entryName;
-    row.teamCode = entryCode;
-    runsMap.set(topBat.name, row);
-  }
-  if (topBowl) {
-    const row = wktsMap.get(topBowl.name) ?? { name: topBowl.name, team: entryName, teamCode: entryCode, value: 0 };
-    row.value += topBowl.wickets;
-    row.team = entryName;
-    row.teamCode = entryCode;
-    wktsMap.set(topBowl.name, row);
+  for (const inn of [innings1, innings2]) {
+    const battingCode = codeOf(inn.team);
+    for (const b of inn.batters) {
+      const row = runsMap.get(b.name) ?? { name: b.name, team: inn.team, teamCode: battingCode, value: 0 };
+      row.value += b.runs;
+      row.team = inn.team;
+      row.teamCode = battingCode;
+      runsMap.set(b.name, row);
+    }
+    const bowlingTeam = inn.team === innings1.team ? innings2.team : innings1.team;
+    const bowlingCode = codeOf(bowlingTeam);
+    for (const bw of inn.bowlers) {
+      const row = wktsMap.get(bw.name) ?? { name: bw.name, team: bowlingTeam, teamCode: bowlingCode, value: 0 };
+      row.value += bw.wickets;
+      row.team = bowlingTeam;
+      row.teamCode = bowlingCode;
+      wktsMap.set(bw.name, row);
+    }
   }
 }
 
@@ -453,9 +420,28 @@ function playOutScore(strengthA: number, strengthB: number, variance: number): {
   return { aWin, prob: p, runsA, runsB };
 }
 
-/** A lightweight AI-vs-AI result -- just enough for standings, no scorecard. */
-function simulateLite(a: TeamEntry, b: TeamEntry): { aWin: boolean; runsA: number; runsB: number } {
+/**
+ * An AI-vs-AI result -- win/runs for standings, exactly as before, but also
+ * builds a real innings pair (the toss is just a coin flip, since neither
+ * side is "you") purely so every one of its batters' runs and bowlers'
+ * wickets can feed the tournament-wide leaderboard. No scorecard from this
+ * match is ever shown to the player, so nothing here needs to reconcile
+ * with anything on screen -- but Most Runs/Most Wickets should still
+ * reflect every player who actually played, not one fabricated standout
+ * per side, so this generates the genuine article instead.
+ */
+function simulateLite(
+  a: TeamEntry, b: TeamEntry,
+  runsMap: Map<string, LeaderboardRow>, wktsMap: Map<string, LeaderboardRow>
+): { aWin: boolean; runsA: number; runsB: number } {
   const { aWin, runsA, runsB } = playOutScore(a.strength, b.strength, 1.0);
+
+  const aBatsFirst = Math.random() < 0.5;
+  const { innings1, innings2 } = aBatsFirst
+    ? buildMatchInnings(a.name, a.battingNames, a.bowlingNames, runsA, b.name, b.battingNames, b.bowlingNames, runsB)
+    : buildMatchInnings(b.name, b.battingNames, b.bowlingNames, runsB, a.name, a.battingNames, a.bowlingNames, runsA);
+  tallyFullMatch(runsMap, wktsMap, innings1, innings2, (name) => (name === a.name ? a.code : b.code));
+
   return { aWin, runsA, runsB };
 }
 
@@ -515,30 +501,21 @@ function simulateDetailed(
     win, prob, tossYouWon, decision, weBatFirst, ourRuns, theirRuns,
   } = playDetailedMatch(you.strength, opp.strength, style.variance);
 
-  const battingFirstRuns = weBatFirst ? ourRuns : theirRuns;
-  const chasingRuns = weBatFirst ? theirRuns : ourRuns;
-  const chaseWon = chasingRuns > battingFirstRuns;
-
-  let innings1: Innings, innings2: Innings;
-  if (weBatFirst) {
-    innings1 = makeInnings("You", ourRuns, false, you.battingNames, opp.bowlingNames);
-    innings2 = makeInnings(opp.name, theirRuns, chaseWon, opp.battingNames, you.bowlingNames);
-  } else {
-    innings1 = makeInnings(opp.name, theirRuns, false, opp.battingNames, you.bowlingNames);
-    innings2 = makeInnings("You", ourRuns, chaseWon, you.battingNames, opp.bowlingNames);
-  }
+  const { innings1, innings2 } = weBatFirst
+    ? buildMatchInnings("You", you.battingNames, you.bowlingNames, ourRuns, opp.name, opp.battingNames, opp.bowlingNames, theirRuns)
+    : buildMatchInnings(opp.name, opp.battingNames, opp.bowlingNames, theirRuns, "You", you.battingNames, you.bowlingNames, ourRuns);
 
   // innings.bowlers always belongs to whichever side did NOT bat that innings.
   const yourInnings = innings1.team === "You" ? innings1 : innings2;
   const oppInnings = innings1.team === "You" ? innings2 : innings1;
   const yourTopBat = topBatterOf(yourInnings);
   const yourTopBowl = topBowlerOf(oppInnings); // bowled while the opponent batted -- these are your bowlers
-  const oppTopBat = topBatterOf(oppInnings);
-  const oppTopBowl = topBowlerOf(yourInnings); // bowled while you batted -- these are the opponent's bowlers
 
   const highlight = highlightFrom(yourTopBat, yourTopBowl);
-  tallyReal(runsMap, wktsMap, "You", you.code, yourTopBat, yourTopBowl);
-  tallyReal(runsMap, wktsMap, opp.name, opp.code, oppTopBat, oppTopBowl);
+  // The highlight line only needs your own top performer, but the
+  // leaderboard tally is a full aggregate across every batter/bowler on
+  // both sides -- same real scorecard, just credited to everyone in it.
+  tallyFullMatch(runsMap, wktsMap, innings1, innings2, (name) => (name === "You" ? you.code : opp.code));
 
   let line: string;
   if (win) {
@@ -616,11 +593,9 @@ function playGroup(
         applyResult(rows.get(you)!, m.win, m.ourRuns, m.theirRuns);
         applyResult(rows.get(opp)!, !m.win, m.theirRuns, m.ourRuns);
       } else {
-        const { aWin, runsA, runsB } = simulateLite(a, b);
+        const { aWin, runsA, runsB } = simulateLite(a, b, runsMap, wktsMap);
         applyResult(rows.get(a)!, aWin, runsA, runsB);
         applyResult(rows.get(b)!, !aWin, runsB, runsA);
-        tally(runsMap, wktsMap, a, runsA);
-        tally(runsMap, wktsMap, b, runsB);
       }
     }
   }
@@ -679,9 +654,7 @@ function runKnockoutBracket(
           winnerIsA: a.isYou ? m.win : !m.win,
         });
       } else {
-        const { aWin, runsA, runsB } = simulateLite(a, b);
-        tally(runsMap, wktsMap, a, runsA);
-        tally(runsMap, wktsMap, b, runsB);
+        const { aWin, runsA, runsB } = simulateLite(a, b, runsMap, wktsMap);
         winners.push(aWin ? a : b);
         roundMatches.push({
           round: label, teamA: bracketTeamRef(a), teamB: bracketTeamRef(b),
