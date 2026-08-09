@@ -746,29 +746,31 @@ export function simulateCupRun(
   let reachedFinal = false;
   let champion = false;
   let stageReached: StageReached = "Group Stage";
-  let bracket: BracketMatch[][] = [];
 
-  if (qualified) {
-    // Standard crossover Round of 16 draw: group winners face a runner-up
-    // from a different group, e.g. 1A v 2B, 1C v 2D, ... 1B v 2A, 1D v 2C...
-    const winners = standingsPerGroup.map((st) => st[0].entry);
-    const runnersUp = standingsPerGroup.map((st) => st[1].entry);
-    const crossPairs: [number, number][] = [[0, 1], [2, 3], [4, 5], [6, 7]];
-    const seeds: TeamEntry[] = [];
-    for (const [x, y] of crossPairs) seeds.push(winners[x], runnersUp[y]);
-    for (const [x, y] of crossPairs) seeds.push(winners[y], runnersUp[x]);
+  // The knockout bracket is the real 16-team field across all 8 groups, not
+  // just "your" path -- it always runs, whether or not you personally
+  // qualified, so the whole tournament stays visualizable (and its own
+  // background matches still feed the leaderboard) regardless of how your
+  // own group finished. "You" only ever appears in `seeds` if you actually
+  // finished top 2 in your own group, so runKnockoutBracket naturally does
+  // nothing "you"-specific when you didn't qualify.
+  const winners = standingsPerGroup.map((st) => st[0].entry);
+  const runnersUp = standingsPerGroup.map((st) => st[1].entry);
+  const crossPairs: [number, number][] = [[0, 1], [2, 3], [4, 5], [6, 7]];
+  const seeds: TeamEntry[] = [];
+  for (const [x, y] of crossPairs) seeds.push(winners[x], runnersUp[y]);
+  for (const [x, y] of crossPairs) seeds.push(winners[y], runnersUp[x]);
 
-    const { champion: champEntry, bracketRounds } = runKnockoutBracket(seeds, style, results, runsMap, wktsMap);
-    champion = champEntry === you;
-    bracket = bracketRounds;
+  const { champion: champEntry, bracketRounds } = runKnockoutBracket(seeds, style, results, runsMap, wktsMap);
+  champion = champEntry === you;
+  const bracket: BracketMatch[][] = bracketRounds;
 
-    const knockoutResults = results.slice(TEAM_PER_GROUP - 1);
-    won += knockoutResults.filter((m) => m.win).length;
-    if (knockoutResults.length) {
-      const last = knockoutResults[knockoutResults.length - 1];
-      reachedFinal = knockoutResults.some((m) => m.stage === "Final");
-      stageReached = champion ? "Champions" : (last.stage as StageReached);
-    }
+  const knockoutResults = results.slice(TEAM_PER_GROUP - 1);
+  won += knockoutResults.filter((m) => m.win).length;
+  if (knockoutResults.length) {
+    const last = knockoutResults[knockoutResults.length - 1];
+    reachedFinal = knockoutResults.some((m) => m.stage === "Final");
+    stageReached = champion ? "Champions" : (last.stage as StageReached);
   }
 
   const topRuns = [...runsMap.values()].sort((a, b) => b.value - a.value).slice(0, 10);

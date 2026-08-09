@@ -84,7 +84,9 @@ export default function BracketScreen() {
         <CricketBallGlyph className="absolute w-24 h-24 text-accent/5 -top-4 left-0 -rotate-12 pointer-events-none" />
         <h2 className="text-xl font-bold m-0">The Knockout Bracket</h2>
         <p className="text-slate-400 text-[13px] mt-1">
-          Top 2 from all 8 groups — your path is highlighted. Click your next match to play it.
+          {pendingMatch
+            ? "Top 2 from all 8 groups — your path is highlighted. Click your next match to play it."
+            : "Top 2 from all 8 groups. Your run is over — browse the full, fully-resolved bracket below."}
         </p>
       </div>
 

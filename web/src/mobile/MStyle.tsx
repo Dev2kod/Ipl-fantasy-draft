@@ -14,7 +14,7 @@ type RevealPhase = "teams" | "groups" | "done";
 export default function MStyle() {
   const {
     style, setStyle, runSimulation, simResults, simMeta,
-    goToResult, goToKnockout, openScorecard, showScorecardFor,
+    goToKnockout, openScorecard, showScorecardFor,
   } = useGameStore();
   const [openIdx, setOpenIdx] = useState<number | null>(null);
 
@@ -274,9 +274,14 @@ export default function MStyle() {
           ) : (
             <>
               <p className="text-loss font-bold text-[13px] text-center m-0 mb-2">
-                Not enough to reach the Round of 16.
+                Not enough to reach the Round of 16 — but the rest of the
+                32-team bracket still played out.
               </p>
-              <BigButton onClick={goToResult}>See Final Result</BigButton>
+              {/* The bracket itself always simulates, even for the 30 teams
+                  that aren't you, so it's still worth browsing on the way
+                  to the result -- MBracket shows it fully revealed and
+                  read-only when you're not part of any tie. */}
+              <BigButton onClick={goToKnockout}>See the Knockout Bracket</BigButton>
             </>
           )}
         </BottomBar>

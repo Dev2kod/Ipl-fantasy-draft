@@ -14,7 +14,7 @@ type RevealPhase = "teams" | "groups" | "done";
 export default function StyleScreen() {
   const {
     style, setStyle, runSimulation, simResults, simMeta,
-    simExpanded, toggleMatchExpand, goToResult, goToKnockout, openScorecard, showScorecardFor,
+    simExpanded, toggleMatchExpand, goToKnockout, openScorecard, showScorecardFor,
   } = useGameStore();
 
   const started = simResults.length > 0;
@@ -253,9 +253,15 @@ export default function StyleScreen() {
                 </>
               ) : (
                 <>
-                  <p className="text-loss font-bold text-sm mb-2">Group Stage complete — not enough to reach the knockouts.</p>
-                  <Button size="lg" onClick={goToResult}>
-                    See Final Result →
+                  <p className="text-loss font-bold text-sm mb-2">
+                    Group Stage complete — not enough to reach the knockouts, but the rest of the 32-team bracket still played out.
+                  </p>
+                  {/* The bracket always simulates, even for the 30 teams that
+                      aren't you, so it's still worth browsing -- BracketScreen
+                      shows it fully revealed and read-only when you're not
+                      part of any tie. */}
+                  <Button size="lg" onClick={goToKnockout}>
+                    See the Knockout Bracket →
                   </Button>
                 </>
               )}

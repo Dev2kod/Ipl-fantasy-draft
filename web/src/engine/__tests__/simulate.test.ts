@@ -242,23 +242,28 @@ describe("tournament structure", () => {
     }
   });
 
-  it("stops at the group stage when not qualified", () => {
+  it("records none of your own knockout matches when not qualified, but the bracket still resolves", () => {
     for (const { results, meta } of RUNS) {
       if (!meta.qualified) {
         expect(results).toHaveLength(GROUP_MATCHES);
-        expect(meta.bracket).toHaveLength(0);
         expect(meta.stageReached).toBe("Group Stage");
       }
     }
   });
 
-  it("runs a 16/8/4/2 bracket for everyone who qualifies", () => {
-    const qualified = RUNS.filter((r) => r.meta.qualified);
-    expect(qualified.length).toBeGreaterThan(0);
-    for (const { meta } of qualified) {
+  it("runs a full 16/8/4/2 bracket for every tournament, whether or not you qualified", () => {
+    expect(RUNS.length).toBeGreaterThan(0);
+    for (const { meta } of RUNS) {
       expect(meta.bracket.map((r) => r.length)).toEqual([8, 4, 2, 1]);
       expect(meta.bracket[0][0].round).toBe("Round of 16");
       expect(meta.bracket[3][0].round).toBe("Final");
+    }
+  });
+
+  it("never seeds you into the bracket unless you actually finished top 2 in your group", () => {
+    for (const { meta } of RUNS) {
+      const inBracket = meta.bracket.some((round) => round.some((m) => m.teamA.isYou || m.teamB.isYou));
+      expect(inBracket).toBe(meta.qualified);
     }
   });
 
