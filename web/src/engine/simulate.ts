@@ -351,13 +351,6 @@ function buildMatchInnings(
   return { innings1, innings2 };
 }
 
-/** Adds every batter's runs and every bowler's wickets from both innings of
- *  a completed match into the tournament-wide leaderboard maps -- a true
- *  aggregate across every player who actually played, not one fabricated
- *  standout per side. Used for every match in the whole 32-team field, so
- *  Most Runs/Most Wickets reflects the entire tournament the way a real
- *  World Cup's tables do, the same way a highlight or scorecard is always
- *  read off the real generated figures rather than invented separately. */
 /** Keys a leaderboard row by name WITHIN a specific squad-edition, not name
  *  alone -- the same real player's name can legitimately turn up on two
  *  different squad-editions in the same 32-team field (e.g. "India 1983"
@@ -365,9 +358,16 @@ function buildMatchInnings(
  *  those are different tournament entries that just happen to share a
  *  historical name, not the same team's stats spread across two rows. */
 function leaderboardKey(team: string, name: string): string {
-  return `${team} ${name}`;
+  return `${team}::${name}`;
 }
 
+/** Adds every batter's runs and every bowler's wickets from both innings of
+ *  a completed match into the tournament-wide leaderboard maps -- a true
+ *  aggregate across every player who actually played, not one fabricated
+ *  standout per side. Used for every match in the whole 32-team field, so
+ *  Most Runs/Most Wickets reflects the entire tournament the way a real
+ *  World Cup's tables do, the same way a highlight or scorecard is always
+ *  read off the real generated figures rather than invented separately. */
 function tallyFullMatch(
   runsMap: Map<string, LeaderboardRow>,
   wktsMap: Map<string, LeaderboardRow>,
